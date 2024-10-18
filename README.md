@@ -1,1 +1,1 @@
-# S25-18-Semi-Autonomous-Navigation-Vehicle
+# S25-18 - Semi Autonomous Navigation Vehicle
