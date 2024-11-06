@@ -13,19 +13,20 @@ int M2D2  = 8;
 int M2IN2 = 31;
 
 // BACK LEFT
-// int M3D1  = ;
-// int M3IN1 = ;
-// int M3D2  = ;
-// int M3IN2 = ;
+int M3D1  = 40;
+int M3IN1 = 41;
+int M3D2  = 4;
+int M3IN2 = 42;
 
 // BACK RIGHT
-// int M4D1  = ;
-// int M4IN1 = ;
-// int M4D2  = ;
-// int M4IN2 = ;
+int M4D1  = 22;
+int M4IN1 = 23;
+int M4D2  = 6;
+int M4IN2 = 25;
 
 // ENABLE
-int EN = 32;
+int EN1 = 32;
+int EN2 = 24;
 
 // DIRECTION
 String direction = "FORWARD"; // Change this to "FORWARD", "RIGHT", "BACKWARD", or "LEFT"
@@ -46,7 +47,6 @@ void setup() {
   pinMode(M2D2,  OUTPUT);
   pinMode(M2IN2, OUTPUT);
 
-  /*
   pinMode(M3D1,  OUTPUT);
   pinMode(M3IN1, OUTPUT);
   pinMode(M3D2,  OUTPUT);
@@ -56,10 +56,11 @@ void setup() {
   pinMode(M4IN1, OUTPUT);
   pinMode(M4D2,  OUTPUT);
   pinMode(M4IN2, OUTPUT);
-  */
-  
-  pinMode(EN, OUTPUT);
 
+  pinMode(EN1, OUTPUT);
+  pinMode(EN2, OUTPUT);
+
+  Serial.begin(9600);
   startTime = millis();
 }
 
@@ -82,28 +83,27 @@ void loop() {
 // FORWARD
 void moveForward() {
   digitalWrite(M1D1,  LOW);
-  digitalWrite(M1IN1, HIGH);
+  digitalWrite(M1IN1, LOW);
   digitalWrite(M1D2,  HIGH);
-  digitalWrite(M1IN2, LOW);
-  
+  digitalWrite(M1IN2, HIGH);
+
   digitalWrite(M2D1,  LOW);
-  digitalWrite(M2IN1, LOW);
+  digitalWrite(M2IN1, HIGH);
   digitalWrite(M2D2,  HIGH);
-  digitalWrite(M2IN2, HIGH);
+  digitalWrite(M2IN2, LOW);
 
-  /*
-  digitalWrite(M3D1,  );
-  digitalWrite(M3IN1, );
-  digitalWrite(M3D2,  );
-  digitalWrite(M3IN2, );
+  digitalWrite(M3D1,  LOW);
+  digitalWrite(M3IN1, HIGH);
+  digitalWrite(M3D2,  HIGH);
+  digitalWrite(M3IN2, LOW);
 
-  digitalWrite(M4D1,  );
-  digitalWrite(M4IN1, );
-  digitalWrite(M4D2,  );
-  digitalWrite(M4IN2, );
-  */
+  digitalWrite(M4D1,  LOW);
+  digitalWrite(M4IN1, LOW);
+  digitalWrite(M4D2,  HIGH);
+  digitalWrite(M4IN2, HIGH);
 
-  digitalWrite(EN, HIGH);
+  digitalWrite(EN1, HIGH);
+  digitalWrite(EN2, HIGH);
 }
 
 
@@ -130,12 +130,13 @@ void moveBackward() {
   digitalWrite(M4D2,  );
   digitalWrite(M4IN2, );
 
-  digitalWrite(EN, HIGH);
+  digitalWrite(EN1, HIGH);
+  digitalWrite(EN2, HIGH);
   */
 }
 
 // RIGHT
-void turnRight() {
+void moveRight() {
   /*
   digitalWrite(M1D1,  );
   digitalWrite(M1IN1, );
@@ -157,12 +158,13 @@ void turnRight() {
   digitalWrite(M4D2,  );
   digitalWrite(M4IN2, );
 
-  digitalWrite(EN, HIGH);
+  digitalWrite(EN1, HIGH);
+  digitalWrite(EN2, HIGH);
   */
 }
 
 // LEFT
-void turnLeft() {
+void moveLeft() {
   /*
   digitalWrite(M1D1,  );
   digitalWrite(M1IN1, );
@@ -184,7 +186,8 @@ void turnLeft() {
   digitalWrite(M4D2,  );
   digitalWrite(M4IN2, );
 
-  digitalWrite(EN, HIGH);
+  digitalWrite(EN1, HIGH);
+  digitalWrite(EN2, HIGH);
   */
 }
 
@@ -210,7 +213,8 @@ void stopMotor() {
   digitalWrite(M4D2,  LOW);
   digitalWrite(M4IN2, LOW);
 
-  digitalWrite(EN, LOW);
+  digitalWrite(EN1, LOW);
+  digitalWrite(EN2, LOW);
 }
 
 
