@@ -29,11 +29,12 @@ int EN1 = 32;
 int EN2 = 24;
 
 // DIRECTION
-String direction = "FORWARD"; // Change this to "FORWARD", "RIGHT", "BACKWARD", or "LEFT"
+String direction = "LEFT"; // Change this to "FORWARD", "RIGHT", "BACKWARD", or "LEFT"
 
 // TIMER
 unsigned long startTime = 0;
-const unsigned long duration = 60000; // 60 Seconds 
+const unsigned long duration = 30000; // 60 Seconds
+const unsigned long startDelay = 5000; // 5-second delay before starting
 
 // PIN MAPPING
 void setup() {
@@ -61,11 +62,14 @@ void setup() {
   pinMode(EN2, OUTPUT);
 
   Serial.begin(9600);
-  startTime = millis();
 }
 
 void loop() {
-  if (millis() - startTime < duration) {
+  delay(startDelay);
+  
+  startTime = millis();
+  
+  while (millis() - startTime < duration) {
     if (direction == "FORWARD") {
       moveForward();
     } else if (direction == "BACKWARD") {
@@ -75,17 +79,18 @@ void loop() {
     } else if (direction == "LEFT") {
       moveLeft();
     }
-  } else {
-    stopMotor();
   }
+  
+  stopMotor();
+  delay(1000);
 }
 
 // FORWARD
 void moveForward() {
   digitalWrite(M1D1,  LOW);
   digitalWrite(M1IN1, LOW);
-  digitalWrite(M1D2,  HIGH);
-  digitalWrite(M1IN2, HIGH);
+  digitalWrite(M1D2,  LOW);
+  digitalWrite(M1IN2, LOW);
 
   digitalWrite(M2D1,  LOW);
   digitalWrite(M2IN1, HIGH);
@@ -93,8 +98,8 @@ void moveForward() {
   digitalWrite(M2IN2, LOW);
 
   digitalWrite(M3D1,  LOW);
-  digitalWrite(M3IN1, HIGH);
-  digitalWrite(M3D2,  HIGH);
+  digitalWrite(M3IN1, LOW);
+  digitalWrite(M3D2,  LOW);
   digitalWrite(M3IN2, LOW);
 
   digitalWrite(M4D1,  LOW);
@@ -109,86 +114,80 @@ void moveForward() {
 
 // BACKWARD
 void moveBackward() {
-  /*
-  digitalWrite(M1D1,  );
-  digitalWrite(M1IN1, );
-  digitalWrite(M1D2,  );
-  digitalWrite(M1IN2, );
-  
-  digitalWrite(M2D1,  );
-  digitalWrite(M2IN1, );
-  digitalWrite(M2D2,  );
-  digitalWrite(M2IN2, );
+  digitalWrite(M1D1,  LOW);
+  digitalWrite(M1IN1, LOW);
+  digitalWrite(M1D2,  LOW);
+  digitalWrite(M1IN2, LOW);
 
-  digitalWrite(M3D1,  );
-  digitalWrite(M3IN1, );
-  digitalWrite(M3D2,  );
-  digitalWrite(M3IN2, );
+  digitalWrite(M2D1,  LOW);
+  digitalWrite(M2IN1, HIGH);
+  digitalWrite(M2D2,  LOW);
+  digitalWrite(M2IN2, HIGH);
 
-  digitalWrite(M4D1,  );
-  digitalWrite(M4IN1, );
-  digitalWrite(M4D2,  );
-  digitalWrite(M4IN2, );
+  digitalWrite(M3D1,  LOW);
+  digitalWrite(M3IN1, LOW);
+  digitalWrite(M3D2,  LOW);
+  digitalWrite(M3IN2, LOW);
+
+  digitalWrite(M4D1,  LOW);
+  digitalWrite(M4IN1, HIGH);
+  digitalWrite(M4D2,  HIGH);
+  digitalWrite(M4IN2, LOW);
 
   digitalWrite(EN1, HIGH);
   digitalWrite(EN2, HIGH);
-  */
 }
 
 // RIGHT
 void moveRight() {
-  /*
-  digitalWrite(M1D1,  );
-  digitalWrite(M1IN1, );
-  digitalWrite(M1D2,  );
-  digitalWrite(M1IN2, );
+  digitalWrite(M1D1,  LOW);
+  digitalWrite(M1IN1, LOW);
+  digitalWrite(M1D2,  HIGH);
+  digitalWrite(M1IN2, HIGH);
   
-  digitalWrite(M2D1,  );
-  digitalWrite(M2IN1, );
-  digitalWrite(M2D2,  );
-  digitalWrite(M2IN2, );
+  digitalWrite(M2D1,  LOW);
+  digitalWrite(M2IN1, LOW);
+  digitalWrite(M2D2,  LOW);
+  digitalWrite(M2IN2, LOW);
 
-  digitalWrite(M3D1,  );
-  digitalWrite(M3IN1, );
-  digitalWrite(M3D2,  );
-  digitalWrite(M3IN2, );
+  digitalWrite(M3D1,  LOW);
+  digitalWrite(M3IN1, HIGH);
+  digitalWrite(M3D2,  HIGH);
+  digitalWrite(M3IN2, LOW);
 
-  digitalWrite(M4D1,  );
-  digitalWrite(M4IN1, );
-  digitalWrite(M4D2,  );
-  digitalWrite(M4IN2, );
+  digitalWrite(M4D1,  LOW);
+  digitalWrite(M4IN1, LOW);
+  digitalWrite(M4D2,  LOW);
+  digitalWrite(M4IN2, LOW);
 
   digitalWrite(EN1, HIGH);
   digitalWrite(EN2, HIGH);
-  */
 }
 
 // LEFT
 void moveLeft() {
-  /*
-  digitalWrite(M1D1,  );
-  digitalWrite(M1IN1, );
-  digitalWrite(M1D2,  );
-  digitalWrite(M1IN2, );
+  digitalWrite(M1D1,  LOW);
+  digitalWrite(M1IN1, HIGH);
+  digitalWrite(M1D2,  HIGH);
+  digitalWrite(M1IN2, LOW);
   
-  digitalWrite(M2D1,  );
-  digitalWrite(M2IN1, );
-  digitalWrite(M2D2,  );
-  digitalWrite(M2IN2, );
+  digitalWrite(M2D1,  LOW);
+  digitalWrite(M2IN1, LOW);
+  digitalWrite(M2D2,  LOW);
+  digitalWrite(M2IN2, LOW);
 
-  digitalWrite(M3D1,  );
-  digitalWrite(M3IN1, );
-  digitalWrite(M3D2,  );
-  digitalWrite(M3IN2, );
+  digitalWrite(M3D1,  LOW);
+  digitalWrite(M3IN1, LOW);
+  digitalWrite(M3D2,  HIGH);
+  digitalWrite(M3IN2, HIGH);
 
-  digitalWrite(M4D1,  );
-  digitalWrite(M4IN1, );
-  digitalWrite(M4D2,  );
-  digitalWrite(M4IN2, );
+  digitalWrite(M4D1,  LOW);
+  digitalWrite(M4IN1, LOW);
+  digitalWrite(M4D2,  LOW);
+  digitalWrite(M4IN2, LOW);
 
   digitalWrite(EN1, HIGH);
   digitalWrite(EN2, HIGH);
-  */
 }
 
 // STOP
@@ -216,12 +215,6 @@ void stopMotor() {
   digitalWrite(EN1, LOW);
   digitalWrite(EN2, LOW);
 }
-
-
-
-
-
-
 
 
 
