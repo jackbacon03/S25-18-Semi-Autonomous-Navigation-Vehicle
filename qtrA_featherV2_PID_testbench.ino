@@ -1,8 +1,9 @@
 /*
-  MOYER / BACON/ SHAIKH
+  MOYER / BACON / SHAIKH
   Jan 30, 2025
 
   Demonstrate PID motor control for line correction
+
   Using line position data with 5x QTR (QRE111) analog sensors
   Uses an 8 channel ADC (MCP3008) to read sensors and report over SPI
   Uses an Adafruit Feather ESP32 V2 to read the ADC over SPI
@@ -10,7 +11,7 @@
   Displays position value on OLED
 */
 
-// #include <MCP3008.h>
+// #include <MCP3008.h>   // Had issues using this library, Replaced it when <Adafruit_MCP3008.h>
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -34,7 +35,6 @@
 // I2C pins for Feather <-> OLED
 #define OLED_RESET 14
 
-
 // Motor Control Pins
 #define MOTOR_D1  12
 #define MOTOR_IN1 33
@@ -42,17 +42,29 @@
 #define MOTOR_IN2 15
 #define MOTOR_EN  32
 
-// PID Constants
-float Kp = 0.10;
+// PID Constants (Taken directly from lecture notes and need to be updated)
+// Stephen what constant do you recommend changing and why? Kp?
+float Kp = 0.80;
 float Ki = 0.00;
-float Kd = 0.01;
+float Kd = 0.05;
 
-// Base Motor Speed
+// Base Motor Speed (Currently 0 for testing)
 int baseSpeed = 0;
 
-// Error
+// Middle of Line
+int setLinePosition = 127;
+
+// Intregral and Error Variables
 float integral = 0, previousError = 0;
 
+// Speed Variables (For Ramp Up Implementation, not done yet)
+int rampStepIncrement = 5; 
+int motorMIN = 0;   
+int motorMAX = 127;   // 255 is Absolute Max, but keep as 127 for now
+int currentFL = 0;
+int currentBL = 0;
+int currentFR = 0;
+int currentBR = 0;
 
 // The ADC using SPI
 Adafruit_MCP3008 myADC;
@@ -82,9 +94,12 @@ void setup() {
 
   Serial.begin(115200);
 
+  // Implemented to work better for new MCP3008 library
   if (!myADC.begin(CLOCK_PIN, MOSI_PIN, MISO_PIN, CS_PIN)) {
-    Serial.println("Couldn't find MCP3008");
-    while (1);  // Stay here forever if initialization fails
+    while (true) {
+        Serial.println("MCP3008 Initialization Fail");
+        delay(1000);
+    }
   }
 
   // Configure Motor Pins as Output
@@ -167,35 +182,117 @@ void loop() {
 
 
 /*
-  PID CONTROL: Adjust motors based on line position
+  PID CONTROL: Adjust motors based on line position / Only Translational, Eventually Adding Rotational (+/- V_CR)
 */
 void PIDControl() {
-  int error = display_LinePosition - 127;
+  // Calculating Error (Actual Line Value - Desired Line Value(127))
+  int error = display_LinePosition - setLinePosition;
+  // Inetgral currently = 0 becuase Ki=0
   integral += error;
+  // Calculating Derivative by difference in Error Values
   float derivative = error - previousError;
 
+  // Correction Value (P*Current Error + I*Error Sum + D*Error Difference)
   float correction = (Kp * error + Ki * integral + Kd * derivative);
+  // Update Previous Error Value for Next Iteration
   previousError = error;
 
-  int leftSpeed = baseSpeed + (correction*10);
-  int rightSpeed = baseSpeed - (correction*10);
+  // Calulating Speed Values for the 4 Motors (Currently multiplying by 10 to boost value to see noticable motor change in testing until constants are fine tuned)
+  int frontLeftSpeed  = baseSpeed + correction;
+  int backLeftSpeed   = baseSpeed - correction;
+  int frontRightSpeed = (-baseSpeed) + correction;
+  int backRightSpeed  = (-baseSpeed) - correction;
 
-  leftSpeed =  constrain(leftSpeed, 0, 255);
-  rightSpeed = constrain(rightSpeed, 0, 255);
+  // Output Serial lines to read Speed Changes
+  Serial.print("FL Speed: "); 
+  Serial.println(frontLeftSpeed);
+  Serial.print("BL Speed: "); 
+  Serial.println(backLeftSpeed);
+  Serial.print("FR Speed: "); 
+  Serial.println(frontRightSpeed);
+  Serial.print("BR Speed: "); 
+  Serial.println(backRightSpeed);
 
-  Serial.print("Left Speed: "); 
-  Serial.println(leftSpeed);
-  Serial.print("Right Speed: "); 
-  Serial.println(rightSpeed);
+  // Used for testing to change what motor we are simulating
+  String MOTOR_CHOICE = "BL";
 
-  analogWrite(MOTOR_D1,  0);
-  analogWrite(MOTOR_IN1, 0);
-  analogWrite(MOTOR_D2,  leftSpeed);
-  analogWrite(MOTOR_IN2, leftSpeed);
-  analogWrite(MOTOR_EN,  255);
+  // Front Left Motor, Commands to send motor signals
+  if (MOTOR_CHOICE == "FL") {
+    Serial.print("Running Front Left Motor!");
+    if (frontLeftSpeed > 0) {
+      analogWrite(MOTOR_D1,  0);
+      analogWrite(MOTOR_IN1, frontLeftSpeed);
+      analogWrite(MOTOR_D2,  frontLeftSpeed);
+      analogWrite(MOTOR_IN2, 0);
+      digitalWrite(MOTOR_EN,  HIGH);
+    }
+    else if (frontLeftSpeed < 0) {
+      frontLeftSpeed = frontLeftSpeed * (-1); 
+      analogWrite(MOTOR_D1,  0);
+      analogWrite(MOTOR_IN1, 0);
+      analogWrite(MOTOR_D2,  frontLeftSpeed);
+      analogWrite(MOTOR_IN2, frontLeftSpeed);
+      digitalWrite(MOTOR_EN,  HIGH);
+    }
+  }
+  // Back Left Motor
+  if (MOTOR_CHOICE == "BL") {
+    if (backLeftSpeed > 0) {
+      analogWrite(MOTOR_D1,  0);
+      analogWrite(MOTOR_IN1, backLeftSpeed);
+      analogWrite(MOTOR_D2,  backLeftSpeed);
+      analogWrite(MOTOR_IN2, 0);
+      digitalWrite(MOTOR_EN,  HIGH);
+    }
+    else if (backLeftSpeed < 0) {
+      backLeftSpeed = backLeftSpeed * (-1);
+      analogWrite(MOTOR_D1,  0);
+      analogWrite(MOTOR_IN1, 0);
+      analogWrite(MOTOR_D2,  backLeftSpeed);
+      analogWrite(MOTOR_IN2, backLeftSpeed);
+      digitalWrite(MOTOR_EN,  HIGH);
+    }   
+  }
+  // Front Right Motor
+  if (MOTOR_CHOICE == "FR") {
+    if (frontRightSpeed > 0) {
+      analogWrite(MOTOR_D1,  0);
+      analogWrite(MOTOR_IN1, 0);
+      analogWrite(MOTOR_D2,  frontRightSpeed);
+      analogWrite(MOTOR_IN2, frontRightSpeed);
+      digitalWrite(MOTOR_EN,  HIGH);
+    }
+    else if (frontRightSpeed < 0) {
+      frontRightSpeed = frontRightSpeed * (-1);
+      analogWrite(MOTOR_D1,  0);
+      analogWrite(MOTOR_IN1, frontRightSpeed);
+      analogWrite(MOTOR_D2,  frontRightSpeed);
+      analogWrite(MOTOR_IN2, 0);
+      digitalWrite(MOTOR_EN,  HIGH);
+    }   
+  }
+  // Back Right Motor
+  if (MOTOR_CHOICE == "BR") {
+    if (backRightSpeed > 0) {
+      analogWrite(MOTOR_D1,  0);
+      analogWrite(MOTOR_IN1, 0);
+      analogWrite(MOTOR_D2,  backRightSpeed);
+      analogWrite(MOTOR_IN2, backRightSpeed);
+      digitalWrite(MOTOR_EN,  HIGH);     
+    }
+    else if (backRightSpeed < 0) {
+      backRightSpeed = backRightSpeed * (-1);
+      analogWrite(MOTOR_D1,  0);
+      analogWrite(MOTOR_IN1, backRightSpeed);
+      analogWrite(MOTOR_D2,  backRightSpeed);
+      analogWrite(MOTOR_IN2, 0);
+      digitalWrite(MOTOR_EN,  HIGH);
+    }   
+  }
 }
 
 
+// Stephen, we have been unable to get the OLED display givin on testbench to work
 /*
   DISPLAY LINE POSITION: Task to run on core 0, displaying sensor data and linePosition on OLED
 */
