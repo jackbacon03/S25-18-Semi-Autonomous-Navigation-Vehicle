@@ -11,12 +11,11 @@
   Displays position value on OLED
 */
 
-// #include <MCP3008.h>   // Had issues using this library, Replaced it when <Adafruit_MCP3008.h>
+#include <MCP3008.h>
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include <Adafruit_MCP3008.h>
 
 // configurables
 #define PRINT_SENSOR_DATA true
@@ -67,7 +66,7 @@ int currentFR = 0;
 int currentBR = 0;
 
 // The ADC using SPI
-Adafruit_MCP3008 myADC;
+MCP3008 myADC(CLOCK_PIN, MOSI_PIN, MISO_PIN, CS_PIN);
 
 // The 128x64 OLED using I2C
 Adafruit_SSD1306 display(128, 64, &Wire, OLED_RESET);
@@ -93,14 +92,6 @@ uint16_t lineCenterCutoff = 0;
 void setup() {
 
   Serial.begin(115200);
-
-  // Implemented to work better for new MCP3008 library
-  if (!myADC.begin(CLOCK_PIN, MOSI_PIN, MISO_PIN, CS_PIN)) {
-    while (true) {
-        Serial.println("MCP3008 Initialization Fail");
-        delay(1000);
-    }
-  }
 
   // Configure Motor Pins as Output
   pinMode(MOTOR_D1,  OUTPUT);
