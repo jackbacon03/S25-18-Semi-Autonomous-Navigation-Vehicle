@@ -1,5 +1,5 @@
 /*
-  BACON / SHAIKH
+  BACON / SHAIKH / MOYER
   Feb 10, 2025
 
   Using line position data with QTR analog sensors
@@ -27,39 +27,40 @@
 #define SENSOR_CUTOFF_VALUE 100
 
 // SPI pins for Feather <-> MCP3008
-#define CS_PIN 4
+#define CS_PIN    4
 #define CLOCK_PIN 5
-#define MOSI_PIN 19
-#define MISO_PIN 21
+#define MOSI_PIN  19
+#define MISO_PIN  21
 
 // Motor Control Pins (From Prototype Robot)
 // FRONT
-#define M1D1  = 52;
-#define M1IN1 = 50;
-#define M1D2  = 10;
-#define M1IN2 = 51;
+#define M1D1  52
+#define M1IN1 50
+#define M1D2  10
+#define M1IN2 51
 // RIGHT
-#define M2D1  = 33;
-#define M2IN1 = 30;
-#define M2D2  = 8;
-#define M2IN2 = 31;
+#define M2D1  33
+#define M2IN1 30
+#define M2D2  8
+#define M2IN2 31
 // BACK
-#define M3D1  = 40;
-#define M3IN1 = 41;
-#define M3D2  = 4;
-#define M3IN2 = 42;
+#define M3D1  40
+#define M3IN1 41
+#define M3D2  4
+#define M3IN2 42
 // LEFT
-#define M4D1  = 22;
-#define M4IN1 = 23;
-#define M4D2  = 6;
-#define M4IN2 = 25;
+#define M4D1  22
+#define M4IN1 23
+#define M4D2  6
+#define M4IN2 25
 // ENABLE
-#define EN1 = 32;
-#define EN2 = 24;
+#define EN1 32
+#define EN2 24
 
 // CONFIG TX RX PINS
-// #define TX = ;
-// #define RX = ;
+#define RX_PIN 16                // Receiving
+#define TX_PIN 17                // Transferring
+HardwareSerial SerialRX(1);      // Use UART1 for receiving data
 
 // PID Constants (Need to be fine tuned, Kp and Kd will be modified via UI_Feather)
 float Kp = 0.80;
@@ -75,7 +76,7 @@ int setLinePosition = 127;
 // Intregral and Error Variables
 float integral = 0, previousError = 0;
 
-// Speed Variables (For Ramp Up Implementation, not done yet)
+// Speed Variables (For Ramp Up Implementation)
 int rampStepIncrement = 5; 
 int motorMIN = 0;   
 int motorMAX = 127;   // 255 is Absolute Max, but keep as 127 for now
@@ -96,11 +97,15 @@ uint16_t lineCenterCutoff = 0;
 
 /*
   SETUP
-  Initializes Serial, OLED, and Task to run on Core 0
+  Initializes Serial
 */
 void setup() {
 
+  // USB Serial for Debugging
   Serial.begin(115200);
+  
+  // UART1 for UI Feather Communication
+  SerialRX.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);  
 
   // FRONT
   pinMode(M1D1,  OUTPUT);
@@ -126,11 +131,7 @@ void setup() {
   pinMode(EN1, OUTPUT);
   pinMode(EN2, OUTPUT);
 
-  Serial.println("Robot Ready. Enter Commands:");
-  Serial.println("STOP: Type STOP");
-  Serial.println("SPEED: Type SPEED=<value> (0-255)");
-  Serial.println("P-CONTROL: Type P=<value>");
-  Serial.println("D-CONTROL: Type D=<value>");
+  Serial.println("Movement Control Feather Ready...");
 
   // vars used based on number of sensors
   maxPosition = (NUM_SENSORS - 1) * 1000;
@@ -160,7 +161,6 @@ void loop() {
   // get data and compute line position
   for (uint8_t i = 0; i < NUM_SENSORS; i++) {
     sensorValues[i] = myADC.readADC(i);
-    display_SensorValues[i] = sensorValues[i];
 
     // determine if this sensor is on the line at all
     if (sensorValues[i] > SENSOR_CUTOFF_VALUE) seeLine[i] = true;
@@ -203,34 +203,55 @@ void loop() {
 */
 void handleUserInput() {
 
-  if (Serial.available() > 0) {
-    String input = Serial.readStringUntil('\n');
+  // Reads from RX Serial Connected Monitor
+  if (SerialRX.available() > 0) {
+    String input = SerialRX.readStringUntil('\n');
     input.trim();
-    if (input == "STOP") {
+
+    if (input == "STOP") {                    // If User Stops Robot
       baseSpeed = 0;
       digitalWrite(EN1, LOW);
       digitalWrite(EN2, LOW);
-      Serial.println("Stopping Robot...");
-      Serial.println("To Start Again, Set a New Speed (SPEED=)");
+      SerialRX.println("ACK: Robot Stopped. Set SPEED= to restart.");
     }
-    else if (input.startsWith("SPEED=")) {
+    else if (input.startsWith("SPEED=")) {    // If User Changes Speed
       baseSpeed = constrain(input.substring(6).toInt(), 0, 255);
       digitalWrite(EN1, HIGH);
       digitalWrite(EN2, HIGH);
-      Serial.print("Speed set to: ");
-      Serial.println(baseSpeed);
-    } else if (input.startsWith("P=")) {
-      Kp = constrain(input.substring(2).toInt(), 0, 5);
-      Serial.print("P-Constant set to: ");
-      Serial.println(Kp);
-    } else if (input.startsWith("D=")) {
-      Kd = constrain(input.substring(2).toInt(), 0, 5);
-      Serial.print("D-Constant set to: ");
-      Serial.println(Kd);
-    } else {
-      Serial.println("Invalid Command. Try Again.");
+      SerialRX.print("ACK: Speed set to ");
+      SerialRX.println(baseSpeed);
+    } else if (input.startsWith("P=")) {      // If User Changes P-Constant
+      Kp = constrain(input.substring(2).toFloat(), 0.0, 5.0);
+      SerialRX.print("ACK: P-Constant set to ");
+      SerialRX.println(Kp, 2);
+    } else if (input.startsWith("D=")) {      // If User Changes D-Constant
+      Kd = constrain(input.substring(2).toFloat(), 0.0, 5.0);
+      SerialRX.print("ACK: D-Constant set to ");
+      SerialRX.println(Kd, 2);
+    } else {                                  // If User Enters an Invalid Command
+      SerialRX.println("ERROR: Invalid Command. Try Again.");
     }
   }
+
+}
+
+
+/*
+  RAMPING: Increment the Motors to the Desired Speed
+*/
+int rampSpeed(int currentSpeed, int targetSpeed) {
+
+  if (currentSpeed < targetSpeed) {         // Ramping Up Current Speed
+    currentSpeed += rampStepIncrement;
+    if (currentSpeed > targetSpeed) currentSpeed = targetSpeed;
+  } 
+  else if (currentSpeed > targetSpeed) {    // Ramping Down Current Speed
+    currentSpeed -= rampStepIncrement;
+    if (currentSpeed < targetSpeed) currentSpeed = targetSpeed;
+  }
+
+  // Ensure currentSpeed is Within Motor Limits
+  return constrain(currentSpeed, motorMIN, motorMAX);
 
 }
 
@@ -243,7 +264,7 @@ void PIDControl() {
   // Calculating Error (Actual Line Value - Desired Line Value(127))
   int error = linePosition - setLinePosition;
   
-  // Inetgral currently = 0 becuase Ki=0
+  // Integral term (currently = 0 becuase Ki=0)
   integral += error;
 
   // Calculating Derivative by difference in Error Values
@@ -255,72 +276,47 @@ void PIDControl() {
   // Update Previous Error Value for Next Iteration
   previousError = error;
 
-  // Calulating Speed Values for the 4 Motors
-  int frontLeftSpeed  = baseSpeed + correction;
-  int backLeftSpeed   = baseSpeed - correction;
-  int frontRightSpeed = (-baseSpeed) + correction;
-  int backRightSpeed  = (-baseSpeed) - correction;
+  // Compute target speeds
+  int targetFL  = baseSpeed + correction;
+  int targetBL  = baseSpeed - correction;
+  int targetFR  = (-baseSpeed) + correction;
+  int targetBR  = (-baseSpeed) - correction;
 
-  // Ensure Motor Speeds are not Exceeding Maximum
-  if (frontLeftSpeed > motorMAX) {
-    frontLeftSpeed = motorMAX;
-  }
-  else if (backLeftSpeed > motorMAX) {
-    backLeftSpeed = motorMAX;
-  }
-  else if (frontRightSpeed > motorMAX) {
-    frontRightSpeed = motorMAX;
-  }
-  else if (backRightSpeed > motorMAX) {
-    backRightSpeed = motorMAX;
-  }
-
-  // Ensure Motor Speeds are not Exceeding Minimum
-  if (frontLeftSpeed < motorMIN) {
-    frontLeftSpeed = motorMIN;
-  }
-  else if (backLeftSpeed < motorMIN) {
-    backLeftSpeed = motorMIN;
-  }
-  else if (frontRightSpeed < motorMIN) {
-    frontRightSpeed = motorMIN;
-  }
-  else if (backRightSpeed < motorMIN) {
-    backRightSpeed = motorMIN;
-  }
+  // Apply speed ramping (gradual acceleration/deceleration)
+  currentFL = rampSpeed(currentFL, targetFL);
+  currentBL = rampSpeed(currentBL, targetBL);
+  currentFR = rampSpeed(currentFR, targetFR);
+  currentBR = rampSpeed(currentBR, targetBR);
 
   // Output Serial lines to read Speed Changes
   if (PRINT_SPEED_DATA) {
-    Serial.print("FL Speed: "); 
-    Serial.println(frontLeftSpeed);
-    Serial.print("BL Speed: "); 
-    Serial.println(backLeftSpeed);
-    Serial.print("FR Speed: "); 
-    Serial.println(frontRightSpeed);
-    Serial.print("BR Speed: "); 
-    Serial.println(backRightSpeed);
+    Serial.print("FL Speed: "); Serial.println(currentFL);
+    Serial.print("BL Speed: "); Serial.println(currentBL);
+    Serial.print("FR Speed: "); Serial.println(currentFR);
+    Serial.print("BR Speed: "); Serial.println(currentBR);
   }
 
-  // Front Left Motor
-  analogWrite(MOTOR_D1,  0);
-  analogWrite(MOTOR_IN1, frontLeftSpeed);
-  analogWrite(MOTOR_D2,  frontLeftSpeed);
-  analogWrite(MOTOR_IN2, 0);
-  // Back Left Motor
-  analogWrite(MOTOR_D1,  0);
-  analogWrite(MOTOR_IN1, backLeftSpeed);
-  analogWrite(MOTOR_D2,  backLeftSpeed);
-  analogWrite(MOTOR_IN2, 0);
-  // Front Right Motor
-  analogWrite(MOTOR_D1,  0);
-  analogWrite(MOTOR_IN1, 0);
-  analogWrite(MOTOR_D2,  frontRightSpeed);
-  analogWrite(MOTOR_IN2, frontRightSpeed);
-  // Back Right Motor
-  analogWrite(MOTOR_D1,  0);
-  analogWrite(MOTOR_IN1, 0);
-  analogWrite(MOTOR_D2,  backRightSpeed);
-  analogWrite(MOTOR_IN2, backRightSpeed);    
+  // Apply PWM signals to motors
+  // FRONT LEFT
+  analogWrite(M1D1,  0);
+  analogWrite(M1IN1, currentFL);
+  analogWrite(M1D2,  currentFL);
+  analogWrite(M1IN2, 0);
+  // FRONT RIGHT
+  analogWrite(M2D1,  0);
+  analogWrite(M2IN1, currentFR);
+  analogWrite(M2D2,  currentFR);
+  analogWrite(M2IN2, 0);
+  // BACK LEFT
+  analogWrite(M3D1,  0);
+  analogWrite(M3IN1, currentBL);
+  analogWrite(M3D2,  currentBL);
+  analogWrite(M3IN2, 0);
+  // BACK RIGHT
+  analogWrite(M4D1,  0);
+  analogWrite(M4IN1, currentBR);
+  analogWrite(M4D2,  currentBR);
+  analogWrite(M4IN2, 0);
 
 }
 
