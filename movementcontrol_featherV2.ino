@@ -60,7 +60,7 @@
 // CONFIG TX RX PINS
 #define RX_PIN 16                // Receiving
 #define TX_PIN 17                // Transferring
-HardwareSerial SerialRX(1);      // Use UART1 for receiving data
+HardwareSerial SerialUIF(1);     // UART1 for User Interface Feather
 
 // PID Constants (Need to be fine tuned, Kp and Kd will be modified via UI_Feather)
 float Kp = 0.80;
@@ -77,8 +77,7 @@ int setLinePosition = 127;
 float integral = 0, previousError = 0;
 
 // Speed Variables (For Ramp Up Implementation)
-int rampStepIncrement = 5; 
-int motorMIN = 0;   
+int rampStepIncrement = 100;   
 int motorMAX = 127;   // 255 is Absolute Max, but keep as 127 for now
 int currentFL = 0;
 int currentBL = 0;
@@ -105,7 +104,7 @@ void setup() {
   Serial.begin(115200);
   
   // UART1 for UI Feather Communication
-  SerialRX.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);  
+  SerialUIF.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);  
 
   // FRONT
   pinMode(M1D1,  OUTPUT);
@@ -204,32 +203,32 @@ void loop() {
 void handleUserInput() {
 
   // Reads from RX Serial Connected Monitor
-  if (SerialRX.available() > 0) {
-    String input = SerialRX.readStringUntil('\n');
+  if (SerialUIF.available() > 0) {
+    String input = SerialUIF.readStringUntil('\n');
     input.trim();
 
     if (input == "STOP") {                    // If User Stops Robot
       baseSpeed = 0;
       digitalWrite(EN1, LOW);
       digitalWrite(EN2, LOW);
-      SerialRX.println("ACK: Robot Stopped. Set SPEED= to restart.");
+      SerialUIF.println("ACK: Robot Stopped. Set SPEED= to restart.");
     }
     else if (input.startsWith("SPEED=")) {    // If User Changes Speed
       baseSpeed = constrain(input.substring(6).toInt(), 0, 255);
       digitalWrite(EN1, HIGH);
       digitalWrite(EN2, HIGH);
-      SerialRX.print("ACK: Speed set to ");
-      SerialRX.println(baseSpeed);
+      SerialUIF.print("ACK: Speed set to ");
+      SerialUIF.println(baseSpeed);
     } else if (input.startsWith("P=")) {      // If User Changes P-Constant
       Kp = constrain(input.substring(2).toFloat(), 0.0, 5.0);
-      SerialRX.print("ACK: P-Constant set to ");
-      SerialRX.println(Kp, 2);
+      SerialUIF.print("ACK: P-Constant set to ");
+      SerialUIF.println(Kp, 2);
     } else if (input.startsWith("D=")) {      // If User Changes D-Constant
       Kd = constrain(input.substring(2).toFloat(), 0.0, 5.0);
-      SerialRX.print("ACK: D-Constant set to ");
-      SerialRX.println(Kd, 2);
+      SerialUIF.print("ACK: D-Constant set to ");
+      SerialUIF.println(Kd, 2);
     } else {                                  // If User Enters an Invalid Command
-      SerialRX.println("ERROR: Invalid Command. Try Again.");
+      SerialUIF.println("ERROR: Invalid Command. Try Again.");
     }
   }
 
@@ -251,7 +250,7 @@ int rampSpeed(int currentSpeed, int targetSpeed) {
   }
 
   // Ensure currentSpeed is Within Motor Limits
-  return constrain(currentSpeed, motorMIN, motorMAX);
+  return constrain(currentSpeed, -motorMAX, motorMAX);
 
 }
 
