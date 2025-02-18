@@ -8,7 +8,7 @@
 */
 
 #define TX_PIN 8                // Transferring
-#define RX_PIN 7                // Recieving
+#define RX_PIN 7                // Receiving
 HardwareSerial SerialMCF(1);    // UART1 for Movement Control Feather
 
 
@@ -23,6 +23,7 @@ void setup() {
 
   // UART1 for TX/RX Communication
   SerialMCF.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN); 
+  delay(50);
 
   // Verify Connection
   while (!SerialMCF) {  
@@ -37,6 +38,8 @@ void setup() {
   Serial.println("SPEED: Type SPEED=<value> (0-255)");
   Serial.println("P-CONTROL: Type P=<value>");
   Serial.println("D-CONTROL: Type D=<value>");
+  delay(50);
+
 }
 
 
@@ -50,7 +53,8 @@ void loop() {
   if (Serial.available() > 0) {
     String command = Serial.readStringUntil('\n');    // Read user input
     command.trim();                                   // Remove spaces & newlines
-    
+    delay(50);
+
     // Validate Command Before Sending
     if (isValidCommand(command)) {
       SerialMCF.println(command);                       // Send to Movement Feather
@@ -64,7 +68,8 @@ void loop() {
   if (SerialMCF.available() > 0) {
     String response = SerialMCF.readStringUntil('\n');         // Read response
     response.trim();                                           // Remove spaces & newlines
-    
+    delay(50);
+
     // Ensure Response is Valid
     if (response.startsWith("ACK:") || response.startsWith("ERROR:")) {
       Serial.print("MCF Response: "); Serial.println(response);   // Display acknowledgment

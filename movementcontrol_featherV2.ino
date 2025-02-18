@@ -47,9 +47,9 @@
 #define M4IN2 20  // SCL PIN
 
 // CONFIG TX RX PINS
-#define RX_PIN 8                 // Receiving
-#define TX_PIN 7                 // Transferring
-HardwareSerial SerialUIF(2);     // UART1 for User Interface Feather
+#define RX_PIN 7                 // Receiving
+#define TX_PIN 8                 // Transferring
+HardwareSerial SerialUIF(1);     // UART1 for User Interface Feather
 
 // PID Constants (Need to be fine tuned, Kp and Kd will be modified via UI_Feather)
 float Kp = 0.80;
@@ -93,7 +93,14 @@ void setup() {
   Serial.begin(115200);
   
   // UART1 for UI Feather Communication
-  SerialUIF.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);  
+  SerialUIF.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);
+  delay(50);  
+
+  // Verify Connection
+  while (!SerialUIF) {  
+    Serial.println("ERROR: SerialUIF failed to start. Retrying...");
+    delay(1000);  // Retry every 1 second
+  }
 
   // FRONT LEFT
   pinMode(M1IN1, OUTPUT);
@@ -112,6 +119,7 @@ void setup() {
 
   // vars used based on number of sensors
   maxPosition = (NUM_SENSORS - 1) * 1000;
+  delay(50);
 
 }
 
@@ -124,6 +132,7 @@ void loop() {
   
   // Checks if User Changed Speed, P-Constant, or D-Constant
   handleUserInput();
+  delay(50);
 
   uint16_t sensorValues[NUM_SENSORS];
   uint32_t avg = 0;
@@ -181,6 +190,7 @@ void handleUserInput() {
   if (SerialUIF.available() > 0) {
     String input = SerialUIF.readStringUntil('\n');
     input.trim();
+    delay(50);
 
     if (input == "STOP") {                    // If User Stops Robot
       baseSpeed = 0;
@@ -277,33 +287,41 @@ void PIDControl() {
   // FRONT LEFT
   if (currentFL >= 0) {
     analogWrite(M1IN1, currentFL);
+    analogWrite(M1IN2, 0);
   }
   else if (currentFL < 0) {
     currentFL = currentFL * -1;
+    analogWrite(M1IN1, 0);
     analogWrite(M1IN2, currentFL);
   }
   // FRONT RIGHT
   if (currentFR >= 0) {
     analogWrite(M2IN1, currentFR);
+    analogWrite(M2IN2, 0);
   }
   else if (currentFR < 0) {
     currentFR = currentFR * -1;
+    analogWrite(M2IN1, 0);
     analogWrite(M2IN2, currentFR);
   }
   // BACK LEFT
   if (currentBL >= 0) {
     analogWrite(M3IN1, currentBL);
+    analogWrite(M3IN2, 0);
   }
   else if (currentBL < 0) {
     currentBL = currentBL * -1;
+    analogWrite(M3IN1, 0);
     analogWrite(M3IN2, currentBL);
   }
   // BACK RIGHT
   if (currentBR >= 0) {
     analogWrite(M4IN1, currentBR);
+    analogWrite(M4IN2, 0);
   }
   else if (currentBR < 0) {
     currentBR = currentBR * -1;
+    analogWrite(M4IN1, 0);
     analogWrite(M4IN2, currentBR);
   }
 
