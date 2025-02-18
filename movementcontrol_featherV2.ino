@@ -33,34 +33,23 @@
 #define MISO_PIN  21
 
 // Motor Control Pins (From Prototype Robot)
-// FRONT
-#define M1D1  52
-#define M1IN1 50
-#define M1D2  10
-#define M1IN2 51
-// RIGHT
-#define M2D1  33
-#define M2IN1 30
-#define M2D2  8
-#define M2IN2 31
-// BACK
-#define M3D1  40
-#define M3IN1 41
-#define M3D2  4
-#define M3IN2 42
-// LEFT
-#define M4D1  22
-#define M4IN1 23
-#define M4D2  6
-#define M4IN2 25
-// ENABLE
-#define EN1 32
-#define EN2 24
+// FRONT LEFT
+#define M1IN1 27
+#define M1IN2 33
+// FRONT RIGHT
+#define M2IN1 13
+#define M2IN2 12
+// BACK LEFT
+#define M3IN1 15
+#define M3IN2 32
+// BACK RIGHT
+#define M4IN1 14
+#define M4IN2 20  // SCL PIN
 
 // CONFIG TX RX PINS
-#define RX_PIN 16                // Receiving
-#define TX_PIN 17                // Transferring
-HardwareSerial SerialUIF(1);     // UART1 for User Interface Feather
+#define RX_PIN 8                 // Receiving
+#define TX_PIN 7                 // Transferring
+HardwareSerial SerialUIF(2);     // UART1 for User Interface Feather
 
 // PID Constants (Need to be fine tuned, Kp and Kd will be modified via UI_Feather)
 float Kp = 0.80;
@@ -106,38 +95,24 @@ void setup() {
   // UART1 for UI Feather Communication
   SerialUIF.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);  
 
-  // FRONT
-  pinMode(M1D1,  OUTPUT);
+  // FRONT LEFT
   pinMode(M1IN1, OUTPUT);
-  pinMode(M1D2,  OUTPUT);
   pinMode(M1IN2, OUTPUT);
-  // RIGHT
-  pinMode(M2D1,  OUTPUT);
+  // FRONT RIGHT
   pinMode(M2IN1, OUTPUT);
-  pinMode(M2D2,  OUTPUT);
   pinMode(M2IN2, OUTPUT);
-  // BACK
-  pinMode(M3D1,  OUTPUT);
+  // BACK LEFT
   pinMode(M3IN1, OUTPUT);
-  pinMode(M3D2,  OUTPUT);
   pinMode(M3IN2, OUTPUT);
-  // LEFT
-  pinMode(M4D1,  OUTPUT);
+  // BACK RIGHT
   pinMode(M4IN1, OUTPUT);
-  pinMode(M4D2,  OUTPUT);
   pinMode(M4IN2, OUTPUT);
-  // ENABLE
-  pinMode(EN1, OUTPUT);
-  pinMode(EN2, OUTPUT);
 
   Serial.println("Movement Control Feather Ready...");
 
   // vars used based on number of sensors
   maxPosition = (NUM_SENSORS - 1) * 1000;
 
-  // Turn on ENABLE Pins to Allo Motor Movement
-  digitalWrite(EN1, HIGH);
-  digitalWrite(EN2, HIGH);
 }
 
 
@@ -209,14 +184,10 @@ void handleUserInput() {
 
     if (input == "STOP") {                    // If User Stops Robot
       baseSpeed = 0;
-      digitalWrite(EN1, LOW);
-      digitalWrite(EN2, LOW);
       SerialUIF.println("ACK: Robot Stopped. Set SPEED= to restart.");
     }
     else if (input.startsWith("SPEED=")) {    // If User Changes Speed
       baseSpeed = constrain(input.substring(6).toInt(), 0, 255);
-      digitalWrite(EN1, HIGH);
-      digitalWrite(EN2, HIGH);
       SerialUIF.print("ACK: Speed set to ");
       SerialUIF.println(baseSpeed);
     } else if (input.startsWith("P=")) {      // If User Changes P-Constant
@@ -240,13 +211,20 @@ void handleUserInput() {
 */
 int rampSpeed(int currentSpeed, int targetSpeed) {
 
-  if (currentSpeed < targetSpeed) {         // Ramping Up Current Speed
-    currentSpeed += rampStepIncrement;
-    if (currentSpeed > targetSpeed) currentSpeed = targetSpeed;
+  // Calculate the Difference Between the Current and Target Speeds
+  int speedDifference = abs(targetSpeed - currentSpeed);
+    
+  // If the Difference is >200, Take a Half Step
+  if (speedDifference > 200) {
+    currentSpeed += (targetSpeed - currentSpeed) / 2;
   } 
-  else if (currentSpeed > targetSpeed) {    // Ramping Down Current Speed
-    currentSpeed -= rampStepIncrement;
-    if (currentSpeed < targetSpeed) currentSpeed = targetSpeed;
+  // If the Difference is >100, Take a Increment Step (+/- 100)
+  else if (speedDifference > 100) {
+    currentSpeed += (targetSpeed > currentSpeed) ? rampStepIncrement : -rampStepIncrement;
+  } 
+  // If Already Very Close, set it Directly
+  else {
+    currentSpeed = targetSpeed;
   }
 
   // Ensure currentSpeed is Within Motor Limits
@@ -295,27 +273,39 @@ void PIDControl() {
     Serial.print("BR Speed: "); Serial.println(currentBR);
   }
 
-  // Apply PWM signals to motors
+  // Apply PWM signals to motors      (NEED TO DETERMINE: CounterClockwise and Clockwise for corresponding positive or negative numbers)
   // FRONT LEFT
-  analogWrite(M1D1,  0);
-  analogWrite(M1IN1, currentFL);
-  analogWrite(M1D2,  currentFL);
-  analogWrite(M1IN2, 0);
+  if (currentFL >= 0) {
+    analogWrite(M1IN1, currentFL);
+  }
+  else if (currentFL < 0) {
+    currentFL = currentFL * -1;
+    analogWrite(M1IN2, currentFL);
+  }
   // FRONT RIGHT
-  analogWrite(M2D1,  0);
-  analogWrite(M2IN1, currentFR);
-  analogWrite(M2D2,  currentFR);
-  analogWrite(M2IN2, 0);
+  if (currentFR >= 0) {
+    analogWrite(M2IN1, currentFR);
+  }
+  else if (currentFR < 0) {
+    currentFR = currentFR * -1;
+    analogWrite(M2IN2, currentFR);
+  }
   // BACK LEFT
-  analogWrite(M3D1,  0);
-  analogWrite(M3IN1, currentBL);
-  analogWrite(M3D2,  currentBL);
-  analogWrite(M3IN2, 0);
+  if (currentBL >= 0) {
+    analogWrite(M3IN1, currentBL);
+  }
+  else if (currentBL < 0) {
+    currentBL = currentBL * -1;
+    analogWrite(M3IN2, currentBL);
+  }
   // BACK RIGHT
-  analogWrite(M4D1,  0);
-  analogWrite(M4IN1, currentBR);
-  analogWrite(M4D2,  currentBR);
-  analogWrite(M4IN2, 0);
+  if (currentBR >= 0) {
+    analogWrite(M4IN1, currentBR);
+  }
+  else if (currentBR < 0) {
+    currentBR = currentBR * -1;
+    analogWrite(M4IN2, currentBR);
+  }
 
 }
 
