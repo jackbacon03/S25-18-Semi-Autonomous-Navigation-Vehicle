@@ -235,9 +235,8 @@ int pGainValue = 2;
 int iGainValue = 3;
 int dGainValue = 4;
 
-// 为了防止按住按钮一直重复触发，这里做个简单的定时来节流
 unsigned long lastPressTime = 0;
-const unsigned long debounceInterval = 200; // 毫秒
+const unsigned long debounceInterval = 200; 
 
 void setup() {
   Serial.begin(115200);
