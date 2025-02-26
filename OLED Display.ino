@@ -232,6 +232,8 @@ bool isEditing = false;
 int batteryValue = 90;
 int speedValue = 10;
 int pGainValue = 2;
+int iGainValue = 3;
+int dGainValue = 4;
 
 // 为了防止按住按钮一直重复触发，这里做个简单的定时来节流
 unsigned long lastPressTime = 0;
@@ -284,6 +286,9 @@ void handleButtonA() {
     break;
     case OLED_MENU: // press A to select one value to edit
     currentOLED = OLED_EDIT;
+    if (menuIndex >= 0 && menuIndex <= 3) {
+        currentOLED = OLED_EDIT;
+      }
     break;
     case OLED_EDIT: // End the edit, press A, come back the main display
     currentOLED = OLED_MAIN;
@@ -299,15 +304,25 @@ void handleButtonB() {
     case OLED_MAIN: //press B, nothing happen
     break;
     case OLED_MENU: // press B, cursor go up
-    menuIndex--;   
-    break;
+      if (menuIndex > 0)
+        menuIndex--;   
+      break;
+      
     case OLED_EDIT: 
-    if (menuIndex = 0) //press B, increase speed value
+    if (menuIndex == 0) //press B, increase speed value
     {
         speedValue++;
+        Serial.print("Speed: ");
+        Serial.println(speedValue); 
     }
-    else{             ////press B, increase P Gain value
+    else if(menuIndex == 1){      ////press B, increase P Gain value
       pGainValue++;
+    }
+    else if(menuIndex == 2){      ////press B, increase I Gain value
+      iGainValue++;
+    }
+    else if(menuIndex == 3){      ////press B, increase D Gain value
+      dGainValue++;
     }
     break;
 
@@ -324,18 +339,20 @@ void handleButtonC() {
     menuIndex++;   
     break;
     case OLED_EDIT: 
-    if (menuIndex = 0) //press C, decrease speed value
+    if (menuIndex == 0 && speedValue > 0) //press C, decrease speed value
     {
-      if (speedValue > 0){  // value not be the negative
-        speedValue--;
-      }
-        
+        speedValue--;      
+        Serial.print("Speed: ");
+        Serial.println(speedValue);  
     }
-    else{             //press C, decrease P Gain value
-      if (speedValue > 0){
-        pGainValue--;
-      }         
-      
+    else if(menuIndex == 1 && pGainValue > 0){ //press C, decrease P Gain value
+        pGainValue--;       
+    }
+    else if(menuIndex == 2 && pGainValue > 0){ //press C, decrease I Gain value
+        iGainValue--;       
+    }
+    else if(menuIndex == 3 && pGainValue > 0){ //press C, decrease D Gain value
+        dGainValue--;       
     }
     break;
 
@@ -368,15 +385,26 @@ void mainScreen()
   // display Battery value
   display.setCursor(0, 0);
   display.print("Battery: ");
-  display.print(batteryVal);
+  display.print(batteryValue);
   display.println("%"); 
   // display Speed value
-  display.setCursor(0, 16);
+  display.setCursor(0, 12);
   display.print("Speed:   ");
-  display.println(speedVal);
-
+  display.println(speedValue);
+  // display p gain value
+  display.setCursor(0, 24);
+  display.print("P Gain:   ");
+  display.println(pGainValue);
+  // display i gain value
+    display.setCursor(0, 36);
+  display.print("I Gain:   ");
+  display.println(iGainValue);
+  // display d value
+    display.setCursor(0, 48);
+    display.print("D Gain:   ");
+  display.println(dGainValue);
   // display Menu mode
-  display.setCursor(0, 28);
+  display.setCursor(90, 52);
   display.print("> Menu");  
 }
 //menu Screen: display the selections
@@ -391,14 +419,30 @@ void menuScreen()
   }
 
   // selection 2: P GAIN
-  display.setCursor(0, 16);
+  display.setCursor(0, 12);
   if (menuIndex == 1) {
     display.print("> P GAIN");
   } else {
     display.print("  P GAIN");
   }
+
+    // selection 3: I GAIN
+  display.setCursor(0, 24);
+  if (menuIndex == 2) {
+    display.print("> I GAIN");
+  } else {
+    display.print("  I GAIN");
+  }
+  
+    // selection 2: D GAIN
+  display.setCursor(0, 36);
+  if (menuIndex == 3) {
+    display.print("> D GAIN");
+  } else {
+    display.print("  D GAIN");
+  }
   // tips
-  display.setCursor(0, 28);
+  display.setCursor(0, 48);
   display.print("Press B/C=Up/Down, A=Select");
 }
 // Editting screen: increase/decrease values
@@ -409,16 +453,30 @@ void editScreen()
     display.setCursor(0, 0);
     display.print("Editing Speed:");
     display.setCursor(0, 28);
-    display.print(speedVal);
-  } else {
+    display.print(speedValue);
+  } 
+  else if(menuIndex == 1){
     // edit P GAIN
     display.setCursor(0, 16);
     display.print("Editing P GAIN:");
     display.setCursor(0, 28);
-    display.print(pGainVal);
+    display.print(pGainValue);
+  }
+    else if(menuIndex == 2){
+    // edit P GAIN
+    display.setCursor(0, 16);
+    display.print("Editing I GAIN:");
+    display.setCursor(0, 28);
+    display.print(iGainValue);
+  }
+    else if(menuIndex == 3){
+    // edit P GAIN
+    display.setCursor(0, 16);
+    display.print("Editing D GAIN:");
+    display.setCursor(0, 28);
+    display.print(dGainValue);
   }
   // tips
   display.setCursor(0, 48);
   display.print("B=+  C=-  A=Save & Return");
 }
-
