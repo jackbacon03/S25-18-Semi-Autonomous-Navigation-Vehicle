@@ -2,7 +2,7 @@
   BACON / SHAIKH / MOYER
   Feb 10, 2025
 
-  Using line position data with QTR analog sensors
+  Using line position data with QTR-8A analog sensor bar
   Uses an 8 channel ADC (MCP3008) to read sensors and report over SPI
   Uses an Adafruit Feather ESP32 V2 to read the ADC over SPI
   Computes line-to-sensor position
@@ -16,35 +16,42 @@
 #include <Adafruit_SSD1306.h>
 
 // Toggle if Sensor Readings and/or Speed Values get printed to Serial Monitor
-#define PRINT_SENSOR_DATA true
+#define PRINT_SENSOR_DATA false
 #define PRINT_SPEED_DATA  true
 
 // Set Number of Sensor Inputs
-#define NUM_SENSORS 5
+#define NUM_SENSORS 8
 
 // this is the decision point for whether a sensor 'sees' the line at all
 // needs to be tuned unless confident sensor will always be on the line
-#define SENSOR_CUTOFF_VALUE 100
+#define SENSOR_CUTOFF_VALUE 350
 
 // SPI pins for Feather <-> MCP3008
-#define CS_PIN    4
+#define CS_PIN    26  //(A0)
 #define CLOCK_PIN 5
 #define MOSI_PIN  19
 #define MISO_PIN  21
 
 // Motor Control Pins (From Prototype Robot)
 // FRONT LEFT
-#define M1IN1 27
-#define M1IN2 33
+#define M1IN1 13  // (CounterClockwise/Forward)
+#define M1IN2 12  // (Clockwise/Backward)
 // FRONT RIGHT
-#define M2IN1 13
-#define M2IN2 12
+#define M2IN1 15  // (CounterClockwise/Backward)
+#define M2IN2 32  // (Clockwise/Forward)
 // BACK LEFT
-#define M3IN1 15
-#define M3IN2 32
+#define M3IN1 27  // (CounterClockwise/Forward)
+#define M3IN2 33  // (Clockwise/Backward)
 // BACK RIGHT
-#define M4IN1 14
-#define M4IN2 20  // SCL PIN
+#define M4IN1 14  // (CounterClockwise/Backward)
+#define M4IN2 20  // (Clockwise/Forward)          // SCL PIN
+
+// ENABLE PINS
+#define PWR_ENABLE 4
+#define M_ENABLE   22
+
+// Track ENABLE State
+bool prevEnableState = LOW;
 
 // CONFIG TX RX PINS
 #define RX_PIN 7                 // Receiving
@@ -52,26 +59,30 @@
 HardwareSerial SerialUIF(1);     // UART1 for User Interface Feather
 
 // PID Constants (Need to be fine tuned, Kp and Kd will be modified via UI_Feather)
-float Kp = 0.80;
+float Kp = 10.00;
 float Ki = 0.00;
-float Kd = 0.05;
+float Kd = 4.00;
 
 // Base Motor Speed (Will be modified via UI_Feather)
-int baseSpeed = 100;
+int baseSpeed = 80;
 
 // Middle of Line
-int setLinePosition = 127;
+int setLinePosition = 129;
 
 // Intregral and Error Variables
 float integral = 0, previousError = 0;
 
 // Speed Variables (For Ramp Up Implementation)
 int rampStepIncrement = 100;   
-int motorMAX = 127;   // 255 is Absolute Max, but keep as 127 for now
+int motorMAX = 255;   // 255 is Absolute Max
 int currentFL = 0;
 int currentBL = 0;
 int currentFR = 0;
 int currentBR = 0;
+int targetFL  = baseSpeed;
+int targetBL  = baseSpeed;
+int targetFR  = baseSpeed;
+int targetBR  = baseSpeed;
 
 // The ADC using SPI
 MCP3008 myADC(CLOCK_PIN, MOSI_PIN, MISO_PIN, CS_PIN);
@@ -114,8 +125,17 @@ void setup() {
   // BACK RIGHT
   pinMode(M4IN1, OUTPUT);
   pinMode(M4IN2, OUTPUT);
+  // ENABLES
+  pinMode(PWR_ENABLE, INPUT);   // No pull-up needed (converter handles it)
+  pinMode(M_ENABLE,   OUTPUT);
 
   Serial.println("Movement Control Feather Ready...");
+
+  // Writing Digital ENABLE High (User Controlled Later On)
+  digitalWrite(M_ENABLE, HIGH);
+
+  //  Read and Store the Initial State of ENABLE
+  bool prevEnableState = analogRead(PWR_ENABLE); 
 
   // vars used based on number of sensors
   maxPosition = (NUM_SENSORS - 1) * 1000;
@@ -229,9 +249,9 @@ int rampSpeed(int currentSpeed, int targetSpeed) {
     currentSpeed += (targetSpeed - currentSpeed) / 2;
   } 
   // If the Difference is >100, Take a Increment Step (+/- 100)
-  else if (speedDifference > 100) {
-    currentSpeed += (targetSpeed > currentSpeed) ? rampStepIncrement : -rampStepIncrement;
-  } 
+  // else if (speedDifference > 100) {
+  //   currentSpeed += (targetSpeed > currentSpeed) ? rampStepIncrement : -rampStepIncrement;
+  // } 
   // If Already Very Close, set it Directly
   else {
     currentSpeed = targetSpeed;
@@ -264,10 +284,10 @@ void PIDControl() {
   previousError = error;
 
   // Compute target speeds
-  int targetFL  = baseSpeed + correction;
-  int targetBL  = baseSpeed - correction;
-  int targetFR  = (-baseSpeed) + correction;
-  int targetBR  = (-baseSpeed) - correction;
+  targetFL  = baseSpeed + correction;
+  targetBL  = baseSpeed - correction;
+  targetFR  = (-baseSpeed) + correction;
+  targetBR  = (-baseSpeed) - correction;
 
   // Apply speed ramping (gradual acceleration/deceleration)
   currentFL = rampSpeed(currentFL, targetFL);
@@ -277,12 +297,13 @@ void PIDControl() {
 
   // Output Serial lines to read Speed Changes
   if (PRINT_SPEED_DATA) {
-    Serial.print("FL Speed: "); Serial.println(currentFL);
-    Serial.print("BL Speed: "); Serial.println(currentBL);
-    Serial.print("FR Speed: "); Serial.println(currentFR);
-    Serial.print("BR Speed: "); Serial.println(currentBR);
+    Serial.print("FL Speed: "); Serial.print(currentFL);
+    Serial.print("  ||  BL Speed: "); Serial.print(currentBL);
+    Serial.print("  ||  FR Speed: "); Serial.print(currentFR);
+    Serial.print("  ||  BR Speed: "); Serial.println(currentBR);
   }
 
+  
   // Apply PWM signals to motors      (NEED TO DETERMINE: CounterClockwise and Clockwise for corresponding positive or negative numbers)
   // FRONT LEFT
   if (currentFL >= 0) {
@@ -293,6 +314,7 @@ void PIDControl() {
     currentFL = currentFL * -1;
     analogWrite(M1IN1, 0);
     analogWrite(M1IN2, currentFL);
+    currentFL = currentFL * -1;
   }
   // FRONT RIGHT
   if (currentFR >= 0) {
@@ -303,6 +325,7 @@ void PIDControl() {
     currentFR = currentFR * -1;
     analogWrite(M2IN1, 0);
     analogWrite(M2IN2, currentFR);
+    currentFR = currentFR * -1;
   }
   // BACK LEFT
   if (currentBL >= 0) {
@@ -313,6 +336,7 @@ void PIDControl() {
     currentBL = currentBL * -1;
     analogWrite(M3IN1, 0);
     analogWrite(M3IN2, currentBL);
+    currentBL = currentBL * -1;
   }
   // BACK RIGHT
   if (currentBR >= 0) {
@@ -323,6 +347,7 @@ void PIDControl() {
     currentBR = currentBR * -1;
     analogWrite(M4IN1, 0);
     analogWrite(M4IN2, currentBR);
+    currentBR = currentBR * -1;
   }
 
 }
