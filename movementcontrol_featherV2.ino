@@ -16,8 +16,8 @@
 #include <Adafruit_SSD1306.h>
 
 // Toggle if Sensor Readings and/or Speed Values get printed to Serial Monitor
-#define PRINT_SENSOR_DATA false
-#define PRINT_SPEED_DATA  true
+#define PRINT_SENSOR_DATA true
+#define PRINT_SPEED_DATA  false
 
 // Set Number of Sensor Inputs
 #define NUM_SENSORS 8
@@ -104,7 +104,7 @@ void setup() {
   Serial.begin(115200);
   
   // UART1 for UI Feather Communication
-  SerialUIF.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);
+  SerialUIF.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
   delay(50);  
 
   // Verify Connection
@@ -211,6 +211,8 @@ void handleUserInput() {
     String input = SerialUIF.readStringUntil('\n');
     input.trim();
     delay(50);
+
+    Serial.println(input);
 
     if (input == "STOP") {                    // If User Stops Robot
       baseSpeed = 0;
