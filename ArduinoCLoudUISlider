@@ -2,42 +2,51 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH110X.h>
+#include "arduino_secrets.h"
+#include <WiFi.h>
+#include "thingProperties.h"
+#include <ArduinoIoTCloud.h>
+#include <Adafruit_NeoPixel.h>
+#define PIN_NEOPIXEL 0
+#define NUMPIXELS 1
 
+Adafruit_NeoPixel pixels(NUMPIXELS, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
+ 
 Adafruit_SH1107 display = Adafruit_SH1107(64, 128, &Wire);
-
+ 
 #define BUTTON_A 15
 #define BUTTON_B 32
 #define BUTTON_C 14
-//UI use GPIO7 
+//UI use GPIO7
 // UART1 use GPIO8
-#define RX_PIN 7 
+#define RX_PIN 7
 #define TX_PIN 8
 HardwareSerial SerialMCF(1); // Movement Control Feather
-
+ 
 enum OLED {
   OLED_MAIN,
   OLED_MENU,
-  OLED_EDIT, 
+  OLED_EDIT,
 };
 OLED currentOLED = OLED_MAIN;
-
+ 
 int menuIndex = 0;
 bool isEditing = false;
-
+ 
 int batteryValue = 90;
 int pGainValue = 2;
 int iGainValue = 3;
 int dGainValue = 4;
 int speedValue = 10;  
 String lastAckMessage = ""; // store the last "ACK: ..." from MCF
-
+ 
 unsigned long lastPressTime = 0;
-const unsigned long debounceInterval = 200; 
+const unsigned long debounceInterval = 200;
 void setup() {
   Serial.begin(115200);
   Serial.println("128x64 OLED FeatherWing Menu Example");
   // initialize OLED
-  display.begin(0x3C, true); 
+  display.begin(0x3C, true);
   display.clearDisplay();
   display.setRotation(1);
   display.display();
@@ -45,21 +54,48 @@ void setup() {
   pinMode(BUTTON_A, INPUT_PULLUP);
   pinMode(BUTTON_B, INPUT_PULLUP);
   pinMode(BUTTON_C, INPUT_PULLUP);
+
+  
+   // initialize NeoPixel
+   pixels.begin();
+   pixels.setBrightness(255);
+   pixels.setPixelColor(0, pixels.Color(255, 0, 0)); // start with red color 
+   pixels.show();
+
+  initProperties();  
+  WiFi.begin(SSID, PASS);
+  Serial.println("Connecting to WiFi...");
+  unsigned long t0 = millis();
+  const unsigned long wifiTimeout = 10000; // 10秒
+  while (WiFi.status() != WL_CONNECTED && (millis() - t0) < wifiTimeout) {
+    delay(500);
+    Serial.print(".");
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWiFi Connected!");
+  } else {
+    Serial.println("\nWiFi connect timed out, retry!");
+  }
+
+  ArduinoCloud.begin(ArduinoIoTPreferredConnection);
+  ArduinoCloud.printDebugInfo();
+
   // serial to movement feather
   SerialMCF.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
   delay(50);
-  //  while(!SerialMCF){}
   Serial.println("UI Feather Ready, Press B/C to adjust speedValue.");
   drawMenu();
+  
 }
 void loop() {
   
-
+   ArduinoCloud.update();
+   onConnectionStatusChange();
   // Button status
   bool aPressed = !digitalRead(BUTTON_A);
   bool bPressed = !digitalRead(BUTTON_B);
   bool cPressed = !digitalRead(BUTTON_C);
-
+ 
   unsigned long currentTime = millis();
   if (currentTime - lastPressTime > debounceInterval) {
     if (aPressed) {
@@ -81,7 +117,7 @@ void loop() {
       if (resp.startsWith("ACK:")) {
         lastAckMessage = resp;  // store to show on OLED
         drawMenu();
-      } 
+      }
       else if (resp.startsWith("ERROR:")) {
         lastAckMessage = resp;
         drawMenu();
@@ -100,10 +136,10 @@ void sendCommandToMCF(String cmd) {
   Serial.print("UI => MCF: ");
   Serial.println(cmd);
 }
-
+ 
 // Button A
 void handleButtonA() {
-  switch (currentOLED) 
+  switch (currentOLED)
   {
     case OLED_MAIN: //press A, go to menu display
     currentOLED = OLED_MENU;
@@ -119,13 +155,13 @@ void handleButtonA() {
     currentOLED = OLED_MAIN;
     
     break;
-
+ 
   }
   drawMenu();
 }
 // button B
 void handleButtonB() {
-  switch (currentOLED) 
+  switch (currentOLED)
   {
     case OLED_MAIN: //press B, nothing happen
     break;
@@ -134,21 +170,26 @@ void handleButtonB() {
         menuIndex--;   
       break;
       
-    case OLED_EDIT: 
+    case OLED_EDIT:
     if (menuIndex == 0) //press B, increase speed value
     {
         speedValue+=10;
-        if (speedValue > 255) 
+        if (speedValue > 255)
         {
           speedValue = 255;
         }
         Serial.print("Speed: ");
-        Serial.println(speedValue); 
+        Serial.println(speedValue);
         sendCommandToMCF("SPEED=" + String(speedValue));
+        speed = speedValue;
+        Serial.print("Local speedValue= ");
+        Serial.print(speedValue);
+        Serial.print(", Cloud speed= ");
+        Serial.println((int)speed); 
     
     }
     else if(menuIndex == 1){      ////press B, increase P Gain value
-      pGainValue++; //15
+      pGainValue++;
       if (pGainValue > 15) 
       {
           pGainValue = 15;
@@ -156,9 +197,10 @@ void handleButtonB() {
       Serial.print("pGain: ");
       Serial.println(pGainValue); 
       sendCommandToMCF("PGAIN=" + String(pGainValue));
+
     }
     else if(menuIndex == 2){      ////press B, increase I Gain value
-      iGainValue++; //15
+      iGainValue++;
       if (iGainValue > 15) 
       {
           iGainValue = 15;
@@ -166,10 +208,9 @@ void handleButtonB() {
       Serial.print("iGain: ");
       Serial.println(iGainValue); 
       sendCommandToMCF("IGAIN=" + String(iGainValue));
-
     }
     else if(menuIndex == 3){      ////press B, increase D Gain value
-      dGainValue++; //15 
+      dGainValue++;
       if (dGainValue > 15) 
       {
           dGainValue = 15;
@@ -179,73 +220,75 @@ void handleButtonB() {
       sendCommandToMCF("DGAIN=" + String(dGainValue));
     }
     break;
-
+ 
   }
   drawMenu();
 }
 // Button C
 void handleButtonC() {
-  switch (currentOLED) 
+  switch (currentOLED)
   {
     case OLED_MAIN: //press C, nothing happen
     break;
     case OLED_MENU: // press C, cursor go down
     if (menuIndex > 0 && menuIndex < 4){
-      menuIndex++; 
+      menuIndex++;
     }
     break;
-    case OLED_EDIT: 
+    case OLED_EDIT:
     if (menuIndex == 0 && speedValue > 0) //press C, decrease speed value
     {
-        speedValue-=10; 
+        speedValue-=10;
         if (speedValue < 0){
           speedValue = 0;
         }     
         Serial.print("Speed: ");
         Serial.println(speedValue);  
         sendCommandToMCF("SPEED=" + String(speedValue));
+        speed = speedValue; //
     }
     else if(menuIndex == 1 && pGainValue > 0){ //press C, decrease P Gain value
-        pGainValue--;     
+        pGainValue--;  
         if (pGainValue < 0) 
         {
           pGainValue = 0;
         }
        Serial.print("pGain: ");
        Serial.println(pGainValue); 
-       sendCommandToMCF("PGAIN=" + String(pGainValue));  
+       sendCommandToMCF("PGAIN=" + String(pGainValue));       
     }
     else if(menuIndex == 2 && pGainValue > 0){ //press C, decrease I Gain value
-        iGainValue--;       
+        iGainValue--;         
         if (iGainValue < 0) 
         {
           iGainValue = 0;
         }
        Serial.print("iGain: ");
        Serial.println(iGainValue); 
-       sendCommandToMCF("IGAIN=" + String(iGainValue));  
+       sendCommandToMCF("IGAIN=" + String(iGainValue));     
     }
     else if(menuIndex == 3 && pGainValue > 0){ //press C, decrease D Gain value
-        dGainValue--;    
+        dGainValue--;  
         if (dGainValue < 0) 
         {
           dGainValue = 0;
         }
        Serial.print("dGain: ");
        Serial.println(dGainValue); 
-       sendCommandToMCF("IGAIN=" + String(dGainValue));  
+       sendCommandToMCF("IGAIN=" + String(dGainValue));       
     }
     break;
-
+ 
   }
   drawMenu();
 }
+
 void drawMenu()
 {
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SH110X_WHITE);
-
+ 
   switch (currentOLED) {
     case OLED_MAIN:
       mainScreen();
@@ -257,17 +300,17 @@ void drawMenu()
       editScreen();
       break;
   }
-
+ 
   display.display();
 }
-// the main screen， display at first 
+// the main screen， display at first
 void mainScreen()
 {
   // display Battery value
   display.setCursor(0, 0);
   display.print("Battery: ");
   display.print(batteryValue);
-  display.println("%"); 
+  display.println("%");
   // display Speed value
   display.setCursor(0, 12);
   display.print("Speed:   ");
@@ -298,7 +341,7 @@ void menuScreen()
   } else {
     display.print("  Speed");
   }
-
+ 
   // selection 2: P GAIN
   display.setCursor(0, 12);
   if (menuIndex == 1) {
@@ -306,7 +349,7 @@ void menuScreen()
   } else {
     display.print("  P GAIN");
   }
-
+ 
     // selection 3: I GAIN
   display.setCursor(0, 24);
   if (menuIndex == 2) {
@@ -335,7 +378,7 @@ void editScreen()
     display.print("Editing Speed:");
     display.setCursor(0, 28);
     display.print(speedValue);
-  } 
+  }
   else if(menuIndex == 1){
     // edit P GAIN
     display.setCursor(0, 16);
@@ -360,4 +403,35 @@ void editScreen()
   // tips
   display.setCursor(0, 48);
   display.print("B=+  C=-  A=Save & Return");
+}
+
+void onConnectionStatusChange()  {
+  if (ArduinoCloud.connected()) {
+    //LED GREEN
+
+    pixels.setPixelColor(0, pixels.Color(0, 255, 0));
+    connectionStatus = true;
+    
+  }
+  else {
+    // LED RED
+    pixels.setPixelColor(0, pixels.Color(255, 0, 0));
+    
+    connectionStatus = false;
+  }
+   pixels.show();
+}
+void onSpeedChange() {
+  int newVal = (speed + 5) / 10 * 10; 
+  if (newVal < 0) newVal = 0;
+  if (newVal > 255) newVal = 255;
+
+  speed = newVal;      
+  speedValue = newVal; 
+  drawMenu(); 
+
+  sendCommandToMCF("SPEED=" + String(speedValue));
+
+  Serial.print("onSpeedChange() => ");
+  Serial.println(speedValue);
 }
