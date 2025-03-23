@@ -24,7 +24,7 @@
 
 // this is the decision point for whether a sensor 'sees' the line at all
 // needs to be tuned unless confident sensor will always be on the line
-#define SENSOR_CUTOFF_VALUE 350
+#define SENSOR_CUTOFF_VALUE 310
 
 // SPI pins for Feather <-> MCP3008
 #define CS_PIN 26       //(A0)
@@ -60,21 +60,21 @@ bool prevEnableState = LOW;
 HardwareSerial SerialUIF(1);  // UART1 for User Interface Feather
 
 // PID Constants (Need to be fine tuned, Kp and Kd will be modified via UI_Feather)
-float Kp = 10.00;
+float Kp = 0.00;
 float Ki = 0.00;
-float Kd = 4.00;
+float Kd = 0.00;
 float gain_translation = 1.00;
 
-float Kp_rotation = 0.00;
+float Kp_rotation = 1.42;
 float Ki_rotation = 0.00;
-float Kd_rotation = 0.00;
+float Kd_rotation = 0.65;
 float gain_rotation = 1.00;
 
 // Base Motor Speed (Will be modified via UI_Feather)
-int baseSpeed = 80;
+int baseSpeed = 120;
 
 // Middle of Line
-int setLinePosition = 129;
+int setLinePosition = 127;
 
 // Intregral and Error Variables
 float integral = 0, previousError = 0;
@@ -270,13 +270,13 @@ void PIDControl() {
   previousError_rotation = error_rotation;
 
   correction = gain_translation * correction;
-  correction_rotational = gain_rotation * correction_rotation;
+  correction_rotation = gain_rotation * correction_rotation;
 
   // Compute target speeds
-  targetFL = baseSpeed + correction - correction_rotation;
-  targetBL = baseSpeed - correction - correction_rotation;
-  targetFR = (-baseSpeed) + correction - correction_rotation;
-  targetBR = (-baseSpeed) - correction - correction_rotation;
+  targetFL = baseSpeed - correction - correction_rotation;
+  targetBL = baseSpeed + correction - correction_rotation;
+  targetFR = (-baseSpeed) - correction - correction_rotation;
+  targetBR = (-baseSpeed) + correction - correction_rotation;
 
   // Apply speed ramping (gradual acceleration/deceleration)
   currentFL = rampSpeed(currentFL, targetFL);
