@@ -190,7 +190,7 @@ void handleButtonC() {
     case OLED_MAIN: //press C, nothing happen
     break;
     case OLED_MENU: // press C, cursor go down
-    if (menuIndex > 0 && menuIndex < 4){
+    if (menuIndex < 3){
       menuIndex++; 
     }
     break;
