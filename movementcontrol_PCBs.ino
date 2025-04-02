@@ -27,7 +27,7 @@
 #define SENSOR_CUTOFF_VALUE 310
 
 // SPI pins for Feather <-> MCP3008
-#define CS_PIN 25       //(A2)
+#define CS_PIN 25      //(A2)
 #define CS_PIN_REAR 4  //(A5)
 #define CLOCK_PIN 5
 #define MOSI_PIN 19
@@ -189,24 +189,49 @@ void handleUserInput() {
     if (input == "STOP") {  // If User Stops Robot
       baseSpeed = 0;
       SerialUIF.println("ACK: Robot Stopped. Set SPEED= to restart.");
+
     } else if (input.startsWith("SPEED=")) {  // If User Changes Speed
       baseSpeed = constrain(input.substring(6).toInt(), 0, 255);
       SerialUIF.print("ACK: Speed set to ");
       SerialUIF.println(baseSpeed);
-    } else if (input.startsWith("P=")) {  // If User Changes P-Constant
-      Kp = constrain(input.substring(2).toFloat(), 0.0, 5.0);
-      SerialUIF.print("ACK: P-Constant set to ");
+
+    } else if (input.startsWith("P_T=")) {  // If User Changes P-Constant (Trans)
+      Kp = constrain(input.substring(2).toFloat(), 0.0, 3.0);
+      SerialUIF.print("ACK: Translational P-Constant set to ");
       SerialUIF.println(Kp, 2);
-    } else if (input.startsWith("D=")) {  // If User Changes D-Constant
-      Kd = constrain(input.substring(2).toFloat(), 0.0, 5.0);
-      SerialUIF.print("ACK: D-Constant set to ");
+    } else if (input.startsWith("I_T=")) {  // If User Changes I-Constant (Trans)
+      Ip = constrain(input.substring(2).toFloat(), 0.0, 3.0);
+      SerialUIF.print("ACK: Translational I-Constant set to ");
+      SerialUIF.println(Ip, 2);
+    } else if (input.startsWith("D_T=")) {  // If User Changes D-Constant (Trans)
+      Kd = constrain(input.substring(2).toFloat(), 0.0, 3.0);
+      SerialUIF.print("ACK: Translational D-Constant set to ");
       SerialUIF.println(Kd, 2);
+    } else if (input.startsWith("P_R=")) {  // If User Changes P-Constant (Rot)
+      Kp_rotation = constrain(input.substring(2).toFloat(), 0.0, 3.0);
+      SerialUIF.print("ACK: Rotational P-Constant set to ");
+      SerialUIF.println(Kp_rotation, 2);
+    } else if (input.startsWith("I_R=")) {  // If User Changes I-Constant (Rot)
+      Ip_rotation = constrain(input.substring(2).toFloat(), 0.0, 3.0);
+      SerialUIF.print("ACK: Rotational I-Constant set to ");
+      SerialUIF.println(Ip_rotation, 2);
+    } else if (input.startsWith("D_R=")) {  // If User Changes D-Constant (Rot)
+      Kd_rotation = constrain(input.substring(2).toFloat(), 0.0, 3.0);
+      SerialUIF.print("ACK: Rotational D-Constant set to ");
+      SerialUIF.println(Kd_rotation, 2);
+    } else if (input.startsWith("G_T=")) {  // If User Changes Gain-Constant (Trans)
+      gain_translation = constrain(input.substring(2).toFloat(), 0.0, 3.0);
+      SerialUIF.print("ACK: Translational Gain set to ");
+      SerialUIF.println(gain_translation, 2);
+    } else if (input.startsWith("G_R=")) {  // If User Changes Gain-Constant (Rot)
+      gain_rotation = constrain(input.substring(2).toFloat(), 0.0, 3.0);
+      SerialUIF.print("ACK: Rotational Gain set to ");
+      SerialUIF.println(gain_rotation, 2);
     } else {  // If User Enters an Invalid Command
       SerialUIF.println("ERROR: Invalid Command. Try Again.");
     }
   }
 }
-
 
 /*
   RAMPING: Increment the Motors to the Desired Speed
