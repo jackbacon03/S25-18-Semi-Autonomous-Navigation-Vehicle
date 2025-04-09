@@ -116,7 +116,7 @@ void setup() {
   Serial.begin(115200);
 
   // UART1 for UI Feather Communication
-  SerialUIF.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);
+  SerialUIF.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
   delay(50);
 
   // Verify Connection
@@ -138,13 +138,13 @@ void setup() {
   pinMode(M4IN1, OUTPUT);
   pinMode(M4IN2, OUTPUT);
   // ENABLES
-  //pinMode(PWR_ENABLE, INPUT);  // No pull-up needed (converter handles it)
-  //pinMode(M_ENABLE, OUTPUT);
+ // pinMode(PWR_ENABLE, INPUT);  // No pull-up needed (converter handles it)
+ // pinMode(M_ENABLE, OUTPUT);
 
   Serial.println("Movement Control Feather Ready...");
 
   // Writing Digital ENABLE High (User Controlled Later On)
-
+  
   //digitalWrite(M_ENABLE, HIGH);
 
   //  Read and Store the Initial State of ENABLE
@@ -182,11 +182,19 @@ void handleUserInput() {
 
   // Reads from RX Serial Connected Monitor
   if (SerialUIF.available() > 0) {
+
     String input = SerialUIF.readStringUntil('\n');
+
     input.trim();
+    Serial.print("RAW: ");
+    Serial.println(input);
     delay(50);
 
-    if (input == "STOP") {  // If User Stops Robot
+
+    if(input.length() == 0){
+      return;
+
+    } else if (input == "STOP") {  // If User Stops Robot
       baseSpeed = 0;
       SerialUIF.println("ACK: Robot Stopped. Set SPEED= to restart.");
 
@@ -196,40 +204,46 @@ void handleUserInput() {
       SerialUIF.println(baseSpeed);
 
     } else if (input.startsWith("P_T=")) {  // If User Changes P-Constant (Trans)
-      Kp = constrain(input.substring(2).toFloat(), 0.0, 3.0);
+      Kp = constrain(input.substring(4).toFloat(), 0.0, 3.0);
       SerialUIF.print("ACK: Translational P-Constant set to ");
-      SerialUIF.println(Kp, 2);
+      SerialUIF.println(Kp, 3);
+
     } else if (input.startsWith("I_T=")) {  // If User Changes I-Constant (Trans)
-      Ip = constrain(input.substring(2).toFloat(), 0.0, 3.0);
+      Ki = constrain(input.substring(4).toFloat(), 0.0, 3.0);
       SerialUIF.print("ACK: Translational I-Constant set to ");
-      SerialUIF.println(Ip, 2);
+      SerialUIF.println(Ki, 3);
+
     } else if (input.startsWith("D_T=")) {  // If User Changes D-Constant (Trans)
-      Kd = constrain(input.substring(2).toFloat(), 0.0, 3.0);
+      Kd = constrain(input.substring(4).toFloat(), 0.0, 3.0);
       SerialUIF.print("ACK: Translational D-Constant set to ");
-      SerialUIF.println(Kd, 2);
+      SerialUIF.println(Kd, 3);
+
     } else if (input.startsWith("P_R=")) {  // If User Changes P-Constant (Rot)
-      Kp_rotation = constrain(input.substring(2).toFloat(), 0.0, 3.0);
+      Kp_rotation = constrain(input.substring(4).toFloat(), 0.0, 3.0);
       SerialUIF.print("ACK: Rotational P-Constant set to ");
-      SerialUIF.println(Kp_rotation, 2);
+      SerialUIF.println(Kp_rotation, 3);
+
     } else if (input.startsWith("I_R=")) {  // If User Changes I-Constant (Rot)
-      Ip_rotation = constrain(input.substring(2).toFloat(), 0.0, 3.0);
+      Ki_rotation = constrain(input.substring(4).toFloat(), 0.0, 3.0);
       SerialUIF.print("ACK: Rotational I-Constant set to ");
-      SerialUIF.println(Ip_rotation, 2);
+      SerialUIF.println(Ki_rotation, 3);
+
     } else if (input.startsWith("D_R=")) {  // If User Changes D-Constant (Rot)
-      Kd_rotation = constrain(input.substring(2).toFloat(), 0.0, 3.0);
+      Kd_rotation = constrain(input.substring(4).toFloat(), 0.0, 3.0);
       SerialUIF.print("ACK: Rotational D-Constant set to ");
-      SerialUIF.println(Kd_rotation, 2);
+      SerialUIF.println(Kd_rotation, 3);
+
     } else if (input.startsWith("G_T=")) {  // If User Changes Gain-Constant (Trans)
-      gain_translation = constrain(input.substring(2).toFloat(), 0.0, 3.0);
+      gain_translation = constrain(input.substring(4).toFloat(), 0.0, 3.0);
       SerialUIF.print("ACK: Translational Gain set to ");
       SerialUIF.println(gain_translation, 2);
+
     } else if (input.startsWith("G_R=")) {  // If User Changes Gain-Constant (Rot)
-      gain_rotation = constrain(input.substring(2).toFloat(), 0.0, 3.0);
+      gain_rotation = constrain(input.substring(4).toFloat(), 0.0, 3.0);
       SerialUIF.print("ACK: Rotational Gain set to ");
       SerialUIF.println(gain_rotation, 2);
-    } else {  // If User Enters an Invalid Command
-      SerialUIF.println("ERROR: Invalid Command. Try Again.");
-    }
+
+    } 
   }
 }
 
