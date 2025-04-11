@@ -18,7 +18,7 @@
 #include <Adafruit_SSD1306.h>
 
 // Toggle if Sensor Readings and/or Speed Values get printed to Serial Monitor
-#define PRINT_SENSOR_DATA false
+#define PRINT_SENSOR_DATA true
 #define PRINT_SPEED_DATA false
 
 // Set Number of Sensor Inputs
@@ -26,7 +26,7 @@
 
 // This is the decision point for whether a sensor 'sees' the line at all
 // needs to be tuned unless confident sensor will always be on the line
-#define SENSOR_CUTOFF_VALUE 310
+#define SENSOR_CUTOFF_VALUE 200
 
 // SPI pins for Feather <-> MCP3008
 #define CS_PIN 25       // (A2 -> A1)
@@ -77,7 +77,7 @@ float gain_rotation = 1.00;
 int baseSpeed = 0;
 
 // Middle of Line
-int setLinePosition = 127;
+int setLinePosition = 125;
 
 // Intregral and Error Variables
 float integral = 0, previousError = 0;
