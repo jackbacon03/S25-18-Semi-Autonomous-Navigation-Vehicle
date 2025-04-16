@@ -54,7 +54,8 @@
 // #define M_ENABLE 22
 
 // Track ENABLE State
-bool prevEnableState = LOW;
+bool prevEnableState = false;
+bool stopButton;
 
 // CONFIG TX RX PINS
 #define RX_PIN 7              // Receiving
@@ -157,6 +158,8 @@ void setup() {
 
   Serial.println("Movement Control Feather Ready...");
 
+  prevEnableState = stopButton;
+
 }
 
 
@@ -170,12 +173,19 @@ void loop() {
   handleUserInput();
   delay(50);
 
+  if (prevEnableState == false && stopButton == true) {  // Detect LOW → HIGH transition
+    rampUpEnable();
+  }
+
   // Read Sensor Values
   readSensors(true);      // Front Sensor
-  readSensors(false);     // True Sensor
+  readSensors(false);     // Back Sensor
 
   // Call for PID control calculations
   PIDControl();
+
+  prevEnableState = stopButton;
+
 }
 
 
@@ -262,7 +272,11 @@ void handleUserInput() {
       Serial.print("NEW ROTATIONAL GAIN: ");
       Serial.println(gain_rotation);
 
-    } 
+    } else if (input.startsWith("DRV_EN=")) {  // If User Uses Stop Button
+      stopButton = input.substring(7).toInt();
+      SerialUIF.println("ACK: Robot Stopped. Toggle Stop Button to start again. ");
+      Serial.println("STOPPING ROBOT");
+    }
   }
 }
 
@@ -449,6 +463,36 @@ void readSensors(bool IS_FRONT) {
     if (IS_FRONT) Serial.println(linePosition);
     else Serial.println(linePosition_rear);
   }
+
+}
+
+
+void rampUpEnable() {
+
+  int speedTarget = baseSpeed;
+
+  baseSpeed = speedTarget / 5;
+
+  PIDControl();
+
+  delay(100);
+
+  baseSpeed = speedTarget / 2;
+
+  PIDControl();
+
+  delay(100);
+
+  baseSpeed = speedTarget;
+  
+  /*while (baseSpeed < speedTarget) {
+
+    PIDControl();
+
+    baseSpeed += 2;
+
+
+  }*/
 
 }
 
