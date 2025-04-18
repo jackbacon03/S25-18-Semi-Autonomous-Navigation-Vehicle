@@ -56,6 +56,7 @@
 // Track ENABLE State
 bool prevEnableState = false;
 bool stopButton;
+bool sensingMethod;
 
 // CONFIG TX RX PINS
 #define RX_PIN 7              // Receiving
@@ -177,12 +178,18 @@ void loop() {
     rampUpEnable();
   }
 
+
   // Read Sensor Values
   readSensors(true);      // Front Sensor
   readSensors(false);     // Back Sensor
 
   // Call for PID control calculations
-  PIDControl();
+  if (sensingMethod == true){
+    PIDControl_Both_Sensors();
+  }
+  else if(sensingMethod == false){
+    PIDControl_Only_Front();
+  }
 
   prevEnableState = stopButton;
 
@@ -277,6 +284,10 @@ void handleUserInput() {
       SerialUIF.println("ACK: Robot Stopped. Toggle Stop Button to start again. ");
       Serial.println("STOPPING ROBOT");
     }
+    else if (input.startsWith("SM=")) {  // If User Uses Stop Button
+      sensingMethod = input.substring(3).toInt();
+      SerialUIF.println("ACK: Switched Control Method. Toggle Sensing Method to switch again. ");
+    }
   }
 }
 
@@ -306,13 +317,14 @@ int rampSpeed(int currentSpeed, int targetSpeed) {
 /*
   PID CONTROL: Adjust motors based on line position
 */
-void PIDControl() {
+void PIDControl_Both_Sensors() {
 
   // Calculating Error (Actual Line Value - Desired Line Value(127))
   int error = linePosition - setLinePosition;
 
   // Integral term (currently = 0 becuase Ki=0)
   integral += error;
+  integral = 0;
 
   // Calculating Derivative by difference in Error Values
   float derivative = error - previousError;
@@ -328,6 +340,7 @@ void PIDControl() {
 
   // Integral term (currently = 0 becuase Ki=0)
   integral_rotation += error_rotation;
+  integral_rotation = 0;
 
   // Calculating Derivative by difference in Error Values
   float derivative_rotation = error_rotation - previousError_rotation;
@@ -402,6 +415,115 @@ void PIDControl() {
 }
 
 
+
+
+
+void PIDControl_Only_Front() {
+
+  // Calculating Error (Actual Line Value - Desired Line Value(127))
+  int error = linePosition - setLinePosition;
+
+  // Integral term (currently = 0 becuase Ki=0)
+  integral += error;
+  integral = 0;
+
+  // Calculating Derivative by difference in Error Values
+  float derivative = error - previousError;
+
+  // Correction Value (P*Current Error + I*Error Sum + D*Error Difference)
+  float correction = (Kp * error + Ki * integral + Kd * derivative);
+
+  // Update Previous Error Value for Next Iteration
+  previousError = error;
+
+  // --- ROTATIONAL ERROR ----
+  int error_rotation = linePosition - setLinePosition;//linePosition_rear;
+
+  // Integral term (currently = 0 becuase Ki=0)
+  integral_rotation += error_rotation;
+  integral_rotation = 0;
+
+  // Calculating Derivative by difference in Error Values
+  float derivative_rotation = error_rotation - previousError_rotation;
+
+  //float EXP_Kp = 0.0001;
+  //float EXP_Kd = 0.00001;
+
+  //float EXP_P_error = error_rotation * error_rotation * error_rotation;
+  //float EXP_D_error = error_rotation * error_rotation * (derivative_rotation);
+
+  // Correction Value (P*Current Error + I*Error Sum + D*Error Difference)
+  float correction_rotation = (Kp_rotation * error_rotation + Ki_rotation * integral_rotation + Kd_rotation * derivative_rotation);
+  //correction_rotation += ((EXP_P_error * EXP_Kp) + EXP_D_error * EXP_Kd);
+
+  // Update Previous Error Value for Next Iteration
+  previousError_rotation = error_rotation;
+
+  // Correction with the Gain Values
+  correction = gain_translation * correction;
+  correction_rotation = gain_rotation * correction_rotation;
+
+  // Compute target speeds
+  targetFL = baseSpeed - correction_rotation;
+  targetBL = baseSpeed - correction_rotation;
+  targetFR = (-baseSpeed) - correction_rotation;
+  targetBR = (-baseSpeed) - correction_rotation;
+
+  // Apply speed ramping (gradual acceleration/deceleration)
+  currentFL = rampSpeed(currentFL, targetFL);
+  currentBL = rampSpeed(currentBL, targetBL);
+  currentFR = rampSpeed(currentFR, targetFR);
+  currentBR = rampSpeed(currentBR, targetBR);
+
+  // Output Serial lines to read Speed Changes
+  if (PRINT_SPEED_DATA) {
+    Serial.print("FL Speed: ");
+    Serial.print(currentFL);
+    Serial.print("  ||  BL Speed: ");
+    Serial.print(currentBL);
+    Serial.print("  ||  FR Speed: ");
+    Serial.print(currentFR);
+    Serial.print("  ||  BR Speed: ");
+    Serial.println(currentBR);
+  }
+
+  // Apply PWM signals to motors
+  // FRONT LEFT
+  if (currentFL >= 0) {
+    analogWrite(M1IN1, currentFL);
+    analogWrite(M1IN2, 0);
+  } else if (currentFL < 0) {
+    analogWrite(M1IN1, 0);
+    analogWrite(M1IN2, -(currentFL));
+  }
+  // FRONT RIGHT
+  if (currentFR >= 0) {
+    analogWrite(M2IN1, currentFR);
+    analogWrite(M2IN2, 0);
+  } else if (currentFR < 0) {
+    analogWrite(M2IN1, 0);
+    analogWrite(M2IN2, -(currentFR));
+  }
+  // BACK LEFT
+  if (currentBL >= 0) {
+    analogWrite(M3IN1, currentBL);
+    analogWrite(M3IN2, 0);
+  } else if (currentBL < 0) {
+    analogWrite(M3IN1, 0);
+    analogWrite(M3IN2, -(currentBL));
+  }
+  // BACK RIGHT
+  if (currentBR >= 0) {
+    analogWrite(M4IN1, currentBR);
+    analogWrite(M4IN2, 0);
+  } else if (currentBR < 0) {
+    analogWrite(M4IN1, 0);
+    analogWrite(M4IN2, -(currentBR));
+  }
+}
+
+
+
 /*
   SENSOR READING: Get the raw sensor values from reading the environment
 */
@@ -473,13 +595,23 @@ void rampUpEnable() {
 
   baseSpeed = speedTarget / 5;
 
-  PIDControl();
+  if (sensingMethod == true){
+    PIDControl_Both_Sensors();
+  }
+  else if(sensingMethod == false){
+    PIDControl_Only_Front();
+  }
 
   delay(100);
 
   baseSpeed = speedTarget / 2;
 
-  PIDControl();
+  if (sensingMethod == true){
+    PIDControl_Both_Sensors();
+  }
+  else if(sensingMethod == false){
+    PIDControl_Only_Front();
+  }
 
   delay(100);
 
