@@ -1,6 +1,7 @@
 # S25-18 - Semi Autonomous Navigation Vehicle Software
 
 **Project Overview**
+
 The Semi-Autonomous Navigation Vehicle is a mobile robotics platform designed to deliver real-time navigation with human intervention capabilities, focusing on low-cost, modular, and user-configurable design. Developed to address the lack of affordable mobile transport solutions for commercial environments, the system features a 3D-printed holonomic drive chassis, custom-designed PCBs, and a wireless user interface via WiFi. The vehicle supports both autonomous line-following and dynamic tuning of parameters during operation to ensure precise, efficient, and adaptable performance across various applications.
 
 **Software Responsibilities**
