@@ -1,0 +1,363 @@
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SH110X.h>
+
+Adafruit_SH1107 display = Adafruit_SH1107(64, 128, &Wire);
+
+#define BUTTON_A 15
+#define BUTTON_B 32
+#define BUTTON_C 14
+//UI use GPIO7 
+// UART1 use GPIO8
+#define RX_PIN 7 
+#define TX_PIN 8
+HardwareSerial SerialMCF(1); // Movement Control Feather
+
+enum OLED {
+  OLED_MAIN,
+  OLED_MENU,
+  OLED_EDIT, 
+};
+OLED currentOLED = OLED_MAIN;
+
+int menuIndex = 0;
+bool isEditing = false;
+
+int batteryValue = 90;
+int pGainValue = 2;
+int iGainValue = 3;
+int dGainValue = 4;
+int speedValue = 10;  
+String lastAckMessage = ""; // store the last "ACK: ..." from MCF
+
+unsigned long lastPressTime = 0;
+const unsigned long debounceInterval = 200; 
+void setup() {
+  Serial.begin(115200);
+  Serial.println("128x64 OLED FeatherWing Menu Example");
+  // initialize OLED
+  display.begin(0x3C, true); 
+  display.clearDisplay();
+  display.setRotation(1);
+  display.display();
+  // initialize button
+  pinMode(BUTTON_A, INPUT_PULLUP);
+  pinMode(BUTTON_B, INPUT_PULLUP);
+  pinMode(BUTTON_C, INPUT_PULLUP);
+  // serial to movement feather
+  SerialMCF.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
+  delay(50);
+  //  while(!SerialMCF){}
+  Serial.println("UI Feather Ready, Press B/C to adjust speedValue.");
+  drawMenu();
+}
+void loop() {
+  
+
+  // Button status
+  bool aPressed = !digitalRead(BUTTON_A);
+  bool bPressed = !digitalRead(BUTTON_B);
+  bool cPressed = !digitalRead(BUTTON_C);
+
+  unsigned long currentTime = millis();
+  if (currentTime - lastPressTime > debounceInterval) {
+    if (aPressed) {
+      handleButtonA();
+      lastPressTime = currentTime;
+    } else if (bPressed) {
+      handleButtonB();
+      lastPressTime = currentTime;
+    } else if (cPressed) {
+      handleButtonC();
+      lastPressTime = currentTime;
+    }
+  }
+  if (SerialMCF.available() > 0) {
+    String resp = SerialMCF.readStringUntil('\n');
+    resp.trim();
+    if (resp.length() > 0) {
+      Serial.println("MovementFeather => " + resp);
+      if (resp.startsWith("ACK:")) {
+        lastAckMessage = resp;  // store to show on OLED
+        drawMenu();
+      } 
+      else if (resp.startsWith("ERROR:")) {
+        lastAckMessage = resp;
+        drawMenu();
+      }
+      else {
+        lastAckMessage = "UnexpResp";
+        drawMenu();
+      }
+    }
+  }
+  delay(20);
+}
+// send command UART
+void sendCommandToMCF(String cmd) {
+  SerialMCF.println(cmd);
+  Serial.print("UI => MCF: ");
+  Serial.println(cmd);
+}
+
+// Button A
+void handleButtonA() {
+  switch (currentOLED) 
+  {
+    case OLED_MAIN: //press A, go to menu display
+    currentOLED = OLED_MENU;
+    menuIndex = 0;
+    break;
+    case OLED_MENU: // press A to select one value to edit
+    currentOLED = OLED_EDIT;
+    if (menuIndex >= 0 && menuIndex <= 3) {
+        currentOLED = OLED_EDIT;
+      }
+    break;
+    case OLED_EDIT: // End the edit, press A, come back the main display
+    currentOLED = OLED_MAIN;
+    
+    break;
+
+  }
+  drawMenu();
+}
+// button B
+void handleButtonB() {
+  switch (currentOLED) 
+  {
+    case OLED_MAIN: //press B, nothing happen
+    break;
+    case OLED_MENU: // press B, cursor go up
+      if (menuIndex > 0)
+        menuIndex--;   
+      break;
+      
+    case OLED_EDIT: 
+    if (menuIndex == 0) //press B, increase speed value
+    {
+        speedValue+=10;
+        if (speedValue > 255) 
+        {
+          speedValue = 255;
+        }
+        Serial.print("Speed: ");
+        Serial.println(speedValue); 
+        sendCommandToMCF("SPEED=" + String(speedValue));
+    
+    }
+    else if(menuIndex == 1){      ////press B, increase P Gain value
+      pGainValue++; //15
+      if (pGainValue > 15) 
+      {
+          pGainValue = 15;
+      }
+      Serial.print("pGain: ");
+      Serial.println(pGainValue); 
+      sendCommandToMCF("PGAIN=" + String(pGainValue));
+    }
+    else if(menuIndex == 2){      ////press B, increase I Gain value
+      iGainValue++; //15
+      if (iGainValue > 15) 
+      {
+          iGainValue = 15;
+      }
+      Serial.print("iGain: ");
+      Serial.println(iGainValue); 
+      sendCommandToMCF("IGAIN=" + String(iGainValue));
+
+    }
+    else if(menuIndex == 3){      ////press B, increase D Gain value
+      dGainValue++; //15 
+      if (dGainValue > 15) 
+      {
+          dGainValue = 15;
+      }
+      Serial.print("dGain: ");
+      Serial.println(dGainValue); 
+      sendCommandToMCF("DGAIN=" + String(dGainValue));
+    }
+    break;
+
+  }
+  drawMenu();
+}
+// Button C
+void handleButtonC() {
+  switch (currentOLED) 
+  {
+    case OLED_MAIN: //press C, nothing happen
+    break;
+    case OLED_MENU: // press C, cursor go down
+    if (menuIndex < 3){
+      menuIndex++; 
+    }
+    break;
+    case OLED_EDIT: 
+    if (menuIndex == 0 && speedValue > 0) //press C, decrease speed value
+    {
+        speedValue-=10; 
+        if (speedValue < 0){
+          speedValue = 0;
+        }     
+        Serial.print("Speed: ");
+        Serial.println(speedValue);  
+        sendCommandToMCF("SPEED=" + String(speedValue));
+    }
+    else if(menuIndex == 1 && pGainValue > 0){ //press C, decrease P Gain value
+        pGainValue--;     
+        if (pGainValue < 0) 
+        {
+          pGainValue = 0;
+        }
+       Serial.print("pGain: ");
+       Serial.println(pGainValue); 
+       sendCommandToMCF("PGAIN=" + String(pGainValue));  
+    }
+    else if(menuIndex == 2 && pGainValue > 0){ //press C, decrease I Gain value
+        iGainValue--;       
+        if (iGainValue < 0) 
+        {
+          iGainValue = 0;
+        }
+       Serial.print("iGain: ");
+       Serial.println(iGainValue); 
+       sendCommandToMCF("IGAIN=" + String(iGainValue));  
+    }
+    else if(menuIndex == 3 && pGainValue > 0){ //press C, decrease D Gain value
+        dGainValue--;    
+        if (dGainValue < 0) 
+        {
+          dGainValue = 0;
+        }
+       Serial.print("dGain: ");
+       Serial.println(dGainValue); 
+       sendCommandToMCF("IGAIN=" + String(dGainValue));  
+    }
+    break;
+
+  }
+  drawMenu();
+}
+void drawMenu()
+{
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SH110X_WHITE);
+
+  switch (currentOLED) {
+    case OLED_MAIN:
+      mainScreen();
+      break;
+    case OLED_MENU:
+      menuScreen();
+      break;
+    case OLED_EDIT:
+      editScreen();
+      break;
+  }
+
+  display.display();
+}
+// the main screen， display at first 
+void mainScreen()
+{
+  // display Battery value
+  display.setCursor(0, 0);
+  display.print("Battery: ");
+  display.print(batteryValue);
+  display.println("%"); 
+  // display Speed value
+  display.setCursor(0, 12);
+  display.print("Speed:   ");
+  display.println(speedValue);
+  // display p gain value
+  display.setCursor(0, 24);
+  display.print("P Gain:   ");
+  display.println(pGainValue);
+  // display i gain value
+    display.setCursor(0, 36);
+  display.print("I Gain:   ");
+  display.println(iGainValue);
+  // display d value
+    display.setCursor(0, 48);
+    display.print("D Gain:   ");
+  display.println(dGainValue);
+  // display Menu mode
+  display.setCursor(90, 52);
+  display.print("> Menu");  
+}
+//menu Screen: display the selections
+void menuScreen()
+{
+  // selection 1: Speed
+  display.setCursor(0, 0);
+  if (menuIndex == 0) {
+    display.print("> Speed");
+  } else {
+    display.print("  Speed");
+  }
+
+  // selection 2: P GAIN
+  display.setCursor(0, 12);
+  if (menuIndex == 1) {
+    display.print("> P GAIN");
+  } else {
+    display.print("  P GAIN");
+  }
+
+    // selection 3: I GAIN
+  display.setCursor(0, 24);
+  if (menuIndex == 2) {
+    display.print("> I GAIN");
+  } else {
+    display.print("  I GAIN");
+  }
+  
+    // selection 2: D GAIN
+  display.setCursor(0, 36);
+  if (menuIndex == 3) {
+    display.print("> D GAIN");
+  } else {
+    display.print("  D GAIN");
+  }
+  // tips
+  display.setCursor(0, 48);
+  display.print("Press B/C=Up/Down, A=Select");
+}
+// Editting screen: increase/decrease values
+void editScreen()
+{
+  if (menuIndex == 0) {
+    // edit Speed
+    display.setCursor(0, 0);
+    display.print("Editing Speed:");
+    display.setCursor(0, 28);
+    display.print(speedValue);
+  } 
+  else if(menuIndex == 1){
+    // edit P GAIN
+    display.setCursor(0, 16);
+    display.print("Editing P GAIN:");
+    display.setCursor(0, 28);
+    display.print(pGainValue);
+  }
+    else if(menuIndex == 2){
+    // edit P GAIN
+    display.setCursor(0, 16);
+    display.print("Editing I GAIN:");
+    display.setCursor(0, 28);
+    display.print(iGainValue);
+  }
+    else if(menuIndex == 3){
+    // edit P GAIN
+    display.setCursor(0, 16);
+    display.print("Editing D GAIN:");
+    display.setCursor(0, 28);
+    display.print(dGainValue);
+  }
+  // tips
+  display.setCursor(0, 48);
+  display.print("B=+  C=-  A=Save & Return");
+}

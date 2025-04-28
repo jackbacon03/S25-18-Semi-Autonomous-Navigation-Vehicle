@@ -23,10 +23,10 @@
 
 // this is the decision point for whether a sensor 'sees' the line at all
 // needs to be tuned unless confident sensor will always be on the line
-#define SENSOR_CUTOFF_VALUE 10
+#define SENSOR_CUTOFF_VALUE 280
 
 // SPI pins for Feather <-> MCP3008
-#define CS_PIN    26  //(A1)
+#define CS_PIN    25 //(AX)
 #define CLOCK_PIN 5
 #define MOSI_PIN  19
 #define MISO_PIN  21
@@ -67,7 +67,7 @@ void loop() {
 
   uint16_t sensorValues[NUM_SENSORS];
   uint32_t avg = 0;
-  uint32_t sum = 0;
+  uint32_t sum = 1;
 
   bool seeLine[NUM_SENSORS];
   for (uint8_t x = 0; x < NUM_SENSORS; x++) seeLine[x] = false;
@@ -82,7 +82,11 @@ void loop() {
     avg += (uint32_t)sensorValues[i] * (i * 1000);
     sum += sensorValues[i];
   }
+  
+  if (sum != 0) {
   linePosition = maxPosition - (avg / sum);
+  } 
+
 
   // determine if on line, excluding the outermost sensors (data is unreliable at extremes)
   bool onLine = false;
@@ -107,6 +111,7 @@ void loop() {
   }
 
   delay(50);
+  
   
 }
 
