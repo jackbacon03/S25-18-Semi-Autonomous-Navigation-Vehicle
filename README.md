@@ -1,12 +1,20 @@
 # S25-18 - Semi Autonomous Navigation Vehicle Software
 
-The software for the Semi-Autonomous Navigation Vehicle is responsible for integrating and managing all aspects of the robot’s operation. The primary purpose of the code is to process the inputs from the robot’s various subsystems such as the sensors and user commands via Bluetooth and output action commands to the motors. The software enables the vehicle to navigate its environment autonomously while allowing real-time adjustments from the user, ensuring smooth, reliable, and efficient performance. 
+**Project Overview**
+The Semi-Autonomous Navigation Vehicle is a mobile robotics platform designed to deliver real-time navigation with human intervention capabilities, focusing on low-cost, modular, and user-configurable design. Developed to address the lack of affordable mobile transport solutions for commercial environments, the system features a 3D-printed holonomic drive chassis, custom-designed PCBs, and a wireless user interface via WiFi. The vehicle supports both autonomous line-following and dynamic tuning of parameters during operation to ensure precise, efficient, and adaptable performance across various applications.
 
-Software Components: 
-- Sensor Data Processing: Interprets data from the QTR-8RC reflectance sensors to detect and follow a line. 
-- Motor Control: Converts processed commands from either the user or sensor readings into physical movement by sending signals to the motor drivers.  
-- Bluetooth Communication: Handles the two-way data exchange between the user’s remote control and the microprocessor. 
-- General Logic Control: Coordinates the behavior of all subsystems, manages operational states, and ensures that real-time decisions are executed efficiently.  
-- Error Handling: Detects and handles and failures or unexpected inputs or actions to ensure smooth operation of robot.  
+**Software Responsibilities**
+- Sensor Data Processing: Reads and interprets raw data from QTR-8A reflectance sensors to detect and follow lines for autonomous navigation.
+- Motor Control: Translates PID control calculations into PWM signals for the motor drivers to control movement.
+- Wireless Communication: Manages two-way data transmission between the microcontroller and the user's control device over a WiFi connection, enabling real-time remote commands and parameter adjustments.
+- OLED and Interface: Continuously updates both platforms to display matching information.
+- Dynamic Tuning: Allows for real-time adjustment of key control parameters (PID coefficients, motor speed settings, etc.) through the wireless user interface without requiring code redeployment.
 
-The software is the core of the vehicle’s functionality. It ensures that the subsystems all work together in harmony to achieve the desired autonomous and semi-autonomous functionality. It is designed to be modular, scalable, and responsive to ensure adaptability for different environments and applications. 
+**Technology Stack**
+- Microcontrollers: Adafruit ESP32 FeatherV2s
+- OLED Display: Adafruit 128x64 OLED FeatherWing
+- Sensors: QTR-8A Reflectance Sensors
+- Programming Language: Arduino IDE (C++)
+- Communication: WiFi
+
+**Please visit our Documentation Files for more information!**
